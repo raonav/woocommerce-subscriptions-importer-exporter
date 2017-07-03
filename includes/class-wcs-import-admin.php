@@ -503,7 +503,7 @@ class WCS_Import_Admin {
 					$this->upload_error = $file['error'];
 				} else {
 
-					$next_step_url_params['step']    = 2;
+					$next_step_url_params['step']    = 3;
 					$next_step_url_params['file_id'] = $file['id'];
 
 					wp_safe_redirect( add_query_arg( $next_step_url_params, $this->admin_url ) );

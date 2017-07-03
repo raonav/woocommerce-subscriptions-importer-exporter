@@ -75,11 +75,7 @@ class WCS_Importer {
 		self::$add_memberships = ( 'true' == $data['add_memberships'] ) ? true : false;
 		self::$fields          = $data['mapped_fields'];
 
-		add_action( 'shutdown', 'WCS_Import_Logger::shutdown_handler' );
-
 		self::import_start( $file_path, $data['file_start'], $data['file_end'] );
-
-		remove_action( 'shutdown', 'WCS_Import_Logger::shutdown_handler' );
 
 		return self::$results;
 	}
@@ -124,6 +120,7 @@ class WCS_Importer {
 
 					self::$row_number++;
                     $data = wilderness_add_missing_data($data);
+                    die(var_dump($data));
 					self::import_subscription( $data );
 
 					if ( ftell( $file_handle ) >= $end_position ) {
@@ -170,7 +167,6 @@ class WCS_Importer {
 
 		if ( ! empty( $result['error'] ) ) {
 			$result['status'] = 'failed';
-			WCS_Import_Logger::log( sprintf( 'Row #%s failed: %s', $result['row_number'], print_r( $result['error'], true ) ) );
 
 			array_push( self::$results, $result );
 			return;
@@ -460,7 +456,6 @@ class WCS_Importer {
 
 			} else {
 				$result['status']  = 'failed';
-				WCS_Import_Logger::log( sprintf( 'Row #%s failed: %s', $result['row_number'], print_r( $result['error'], true ) ) );
 			}
 		}
 
