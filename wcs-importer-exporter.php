@@ -1,50 +1,14 @@
 <?php
-/**
- * Plugin Name: WooCommerce Subscriptions CSV Importer and Exporter
- * Plugin URI: https://github.com/Prospress/woocommerce-subscriptions-importer-exporter
- * Description: Import or export subscriptions in your WooCommerce store via CSV.
- * Version: 2.0-beta
- * Author: Prospress Inc
- * Author URI: http://prospress.com
- * License: GPLv3
- *
- * GitHub Plugin URI: Prospress/woocommerce-subscriptions-importer-exporter
- * GitHub Branch: master
- *
- * Copyright 2017 Prospress, Inc.  (email : freedoms@prospress.com)
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- * @package		WooCommerce Subscriptions Importer Exporter
- * @author		Prospress Inc.
- * @since		1.0
- */
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-if ( ! function_exists( 'woothemes_queue_update' ) || ! function_exists( 'is_woocommerce_active' ) ) {
-	require_once( 'woo-includes/woo-functions.php' );
-}
-
 require_once( 'includes/wcsi-functions.php' );
+require_once( 'includes/wilderness-functions.php' );
 
 class WCS_Importer_Exporter {
 
 	public static $wcs_importer;
-
-	public static $wcs_exporter;
 
 	public static $version = '1.0.0';
 
@@ -71,10 +35,7 @@ class WCS_Importer_Exporter {
 
 		if ( is_admin() ) {
 			if ( class_exists( 'WC_Subscriptions' ) && version_compare( WC_Subscriptions::$version, '2.0', '>=' ) ) {
-				self::$wcs_exporter = new WCS_Export_Admin();
 				self::$wcs_importer = new WCS_Import_Admin();
-			} else {
-				add_action( 'admin_notices', __CLASS__ . '::plugin_dependency_notice' );
 			}
 		}
 	}
@@ -92,33 +53,6 @@ class WCS_Importer_Exporter {
 		);
 
 		return array_merge( $plugin_links, $links );
-	}
-
-	/**
-	 * Display error message according to the missing dependency
-	 *
-	 * Will only show error for missing WC if Subscriptions is missing as well,
-	 * this is to avoid duplicating messages printed by Subscriptions.
-	 *
-	 * @since 1.0
-	 */
-	public static function plugin_dependency_notice() {
-
-		if ( ! class_exists( 'WC_Subscriptions' ) || ! class_exists( 'WC_Subscriptions_Admin' ) ) :
-			if ( is_woocommerce_active() ) : ?>
-				<div id="message" class="error">
-					<p><?php printf( esc_html__( '%1$sWooCommerce Subscriptions Importer is inactive.%2$s The %3$sWooCommerce Subscriptions plugin%4$s must be active for WooCommerce Subscriptions Importer to work. Please %5$sinstall & activate%6$s WooCommerce.', 'wcs-import-export' ), '<strong>', '</strong>', '<a href="http://www.woothemes.com/products/woocommerce-subscriptions/">', '</a>', '<a href="' . esc_url( admin_url( 'plugins.php' ) ) . '">', '</a>' ); ?></p>
-				</div>
-			<?php else : ?>
-				<div id="message" class="error">
-					<p><?php printf( esc_html__( '%1$sWooCommerce Subscriptions Importer is inactive.%2$s Both %3$sWooCommerce%4$s and %5$sWooCommerce Subscriptions%6$s plugins must be active for WooCommerce Subscriptions Importer to work. Please %7$sinstall & activate%8$s these plugins before continuing.', 'wcs-import-export' ), '<strong>', '</strong>', '<a href="http://wordpress.org/extend/plugins/woocommerce/">', '</a>', '<a href="http://www.woothemes.com/products/woocommerce-subscriptions/">', '</a>', '<a href="' . esc_url( admin_url( 'plugins.php' ) ) . '">', '</a>' ); ?></p>
-				</div>
-			<?php endif;?>
-		<?php elseif ( ! class_exists( 'WC_Subscriptions' ) || version_compare( WC_Subscriptions::$version, '2.0', '<' ) ) : ?>
-			<div id="message" class="error">
-				<p><?php printf( esc_html__( '%1$sWooCommerce Subscriptions Importer is inactive.%2$s The %3$sWooCommerce Subscriptions%4$s version 2.0 (or greater) is required to safely run WooCommerce Subscriptions Importer. Please %5$supdate & activate%6$s WooCommerce Subscriptions.', 'wcs-import-export' ), '<strong>', '</strong>', '<a href="http://www.woothemes.com/products/woocommerce-subscriptions/">', '</a>', '<a href="' . esc_url( admin_url( 'plugins.php' ) ) . '">', '&nbsp;&raquo;</a>' ); ?></p>
-			</div>
-		<?php endif;
 	}
 
 	/**
@@ -151,7 +85,7 @@ class WCS_Importer_Exporter {
 		$class = strtolower( $class );
 		$file  = 'class-' . str_replace( '_', '-', $class ) . '.php';
 
-		if ( 0 === strpos( $class, 'wcs_import' ) || 0 === strpos( $class, 'wcs_export' ) ) {
+		if ( 0 === strpos( $class, 'wcs_import' )) {
 			require_once( self::plugin_dir() . '/includes/' . $file );
 		}
 	}

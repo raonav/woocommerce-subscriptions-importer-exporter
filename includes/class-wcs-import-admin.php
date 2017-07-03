@@ -135,7 +135,6 @@ class WCS_Import_Admin {
 					'start_row_num'    => $row_start,
 					'ajax_url'         => admin_url( 'admin-ajax.php' ),
 					'rows_per_request' => $this->rows_per_request,
-					'test_mode'        => ( 'yes' == $_GET['test_mode'] ) ? 'true' : 'false',
 					'email_customer'   => ( 'yes' == $_GET['email_customer'] ) ? 'true' : 'false',
 					'add_memberships'  => ( 'yes' == $_GET['add_memberships'] ) ? 'true' : 'false',
 					'total'            => $total,
@@ -157,24 +156,14 @@ class WCS_Import_Admin {
 		echo '<div class="wrap">';
 		echo '<h2>' . esc_html__( 'Subscription CSV Importer', 'wcs-import-export' ) . '</h2>';
 
-		if ( ! isset( $_GET['step'] ) || isset( $_GET['cancelled'] ) ) : ?>
-
+		if ( isset( $_GET['cancelled'] ) ) : ?>
 			<div id="message" class="updated woocommerce-message wc-connect">
 			<?php if ( isset( $_GET['cancelled'] ) ) : ?>
 				<div id="message" class="updated error">
 					<p><?php esc_html_e( 'Import cancelled.', 'wcs-import-export' ); ?></p>
 				</div>
 			<?php endif; ?>
-			<?php if ( ! isset( $_GET['step'] ) ) : ?>
-				<div class="squeezer">
-					<h4><?php printf( esc_html__( '%1$sBefore you begin%2$s, please prepare your CSV file.', 'wcs-import-export' ), '<strong>', '</strong>' ); ?></h4>
-					<p class="submit">
-						<a href="https://github.com/prospress/woocommerce-subscriptions-import-export/blob/master/README.md" class="button-primary"><?php esc_html_e( 'Documentation', 'wcs-import-export' ); ?></a>
-						<a href="<?php echo esc_url( WCS_Importer_Exporter::plugin_url() . 'wcs-import-sample.csv' ); ?>" class="button wcs-importer-download"><?php esc_html_e( 'Download Example CSV', 'wcs-import-export' ); ?></a>
-					</p>
-				</div>
-			<?php endif; ?>
-		</div>
+		    </div>
 		<?php endif;
 
 		$page = ( isset( $_GET['step'] ) ) ? $_GET['step'] : 1;
@@ -211,7 +200,6 @@ class WCS_Import_Admin {
 		}
 
 		// Set defaults for admin flags
-		$test_mode       = ( isset( $_POST['test_mode'] ) ) ? $_POST['test_mode'] : 'yes';
 		$email_customer  = ( isset( $_POST['email_customer'] ) ) ? $_POST['email_customer'] : 'no';
 		$add_memberships = ( isset( $_POST['add_memberships'] ) ) ? $_POST['add_memberships'] : 'no';
 
@@ -226,9 +214,6 @@ class WCS_Import_Admin {
 			<div class="error"><p><?php esc_html_e( 'Before you can upload your import file, you will need to fix the following error:', 'wcs-import-export' ); ?></p>
 			<p><strong><?php echo esc_html( $upload_dir['error'] ); ?></strong></p></div>
 		<?php else : ?>
-			<p><?php esc_html_e( 'Upload a CSV file containing details about your subscriptions to bring across to your store with WooCommerce.', 'wcs-import-export' ); ?></p>
-			<p><?php esc_html_e( 'Choose a CSV (.csv) file to upload, then click Upload file and import.', 'wcs-import-export' ); ?></p>
-
 			<form enctype="multipart/form-data" id="import-upload-form" method="post" action="<?php echo esc_attr( $this->admin_url ); ?>">
 				<?php wp_nonce_field( 'import-upload', 'wcsi_wpnonce' ); ?>
 				<table class="form-table">
@@ -244,13 +229,6 @@ class WCS_Import_Admin {
 							</td>
 						</tr>
 						<tr>
-							<th><?php esc_html_e( 'Run in Test Mode:', 'wcs-import-export' ); ?>:</th>
-							<td>
-								<input type="checkbox" name="test_mode" value="yes" <?php checked( $test_mode, 'yes' ); ?> />
-								<em><?php esc_html_e( 'Check your CSV file for errors and warnings without creating subscriptions, users or orders.', 'wcs-import-export' ); ?></em>
-							</td>
-						</tr>
-						<tr>
 							<th><?php esc_html_e( 'Email Passwords:', 'wcs-import-export' ); ?></th>
 							<td>
 								<input type="checkbox" name="email_customer" value="yes" <?php checked( $email_customer, 'yes' ); ?> />
@@ -263,7 +241,7 @@ class WCS_Import_Admin {
 								<th><?php esc_html_e( 'Add Memberships:', 'wcs-import-export' ); ?></th>
 								<td>
 									<input type="checkbox" name="add_memberships" value="yes" <?php checked( $add_memberships, 'yes' ); ?> />
-									<em><?php printf( esc_html__( 'Automatically add the membership to the new subscription if it contains a product that is part of a membership plan (only works with %1$sWooCommerce Memberships%2$s).', 'wcs-import-export' ), '<a href="https://www.woothemes.com/products/woocommerce-memberships/">', '</a>' ); ?></em>
+									<em><?php printf( esc_html__( 'Automatically add the membership to the new subscription if it contains a product that is part of a membership plan.', 'wcs-import-export' ) ); ?></em>
 								</td>
 							</tr>
 						<?php endif; ?>
@@ -306,8 +284,9 @@ class WCS_Import_Admin {
 
 						if ( ! $column_header ) {
 							continue;
-						}
-
+                        }
+                        // MOD: do some prior filtering of the columns
+                        $column_header = wilderness_column_map($column_header);
 						$row[ $column_header ] = ( isset( $postmeta[ $key ] ) ) ? wcsi_format_data( $postmeta[ $key ], $enc ) : '';
 					}
 
@@ -320,13 +299,12 @@ class WCS_Import_Admin {
 		$url_params = array(
 			'step'            => '3',
 			'file_id'         => $file_id,
-			'test_mode'       => $_GET['test_mode'],
 			'email_customer'  => $_GET['email_customer'],
 			'add_memberships' => $_GET['add_memberships'],
 		);
 
 		$action      = add_query_arg( $url_params, $this->admin_url );
-		$button_text = ( 'yes' == $_GET['test_mode'] ) ? __( 'Test CSV', 'wcs-import-export' ) : __( 'Run Import', 'wcs-import-export' );
+		$button_text = 'Run Import';
 		$row_number  = 1;
 
 		$customer_fields     = array( 'customer_id', 'customer_email', 'customer_username', 'customer_password' );
@@ -345,7 +323,8 @@ class WCS_Import_Admin {
 						<th><?php esc_html_e( 'Example Column Value', 'wcs-import-export' ); ?></th>
 					</tr>
 				</thead>
-				<tbody>
+                <tbody>
+                    <?php //MOD: A whole lotta changes ?>
 					<?php foreach ( $row as $header => $sample ) : ?>
 					<tr <?php echo ( ++$row_number % 2 ) ? '' : 'class="alternate"'; ?>>
 						<td>
@@ -356,14 +335,6 @@ class WCS_Import_Admin {
 										<option value="<?php echo esc_attr( $option ); ?>" <?php selected( $header, $option ); ?>><?php echo esc_attr( $option ); ?></option>
 									<?php endforeach; ?>
 								</optgroup>
-								<optgroup label="<?php esc_attr_e( 'Subscription Details', 'wcs-import-export' ); ?>">
-									<option value="subscription_status" <?php selected( $header, 'subscription_status' ); ?>>subscription_status</option>
-									<option value="shipping_method" <?php selected( $header, 'shipping_method' ); ?>>shipping_method</option>
-									<option value="order_currency" <?php selected( $header, 'order_currency' ); ?>>order_currency</option>
-									<option value="customer_note" <?php selected( $header, 'customer_note' ); ?>>customer_note</option>
-									<option value="order_notes" <?php selected( $header, 'order_notes' ); ?>>order_notes</option>
-									<option value="download_permissions" <?php selected( $header, 'download_permissions' ); ?>>download_permissions</option>
-								</optgroup>
 								<optgroup label="<?php esc_attr_e( 'Subscription Billing Schedule', 'wcs-import-export' ); ?>">
 									<?php foreach ( $subscription_fields as $option ) : ?>
 										<option value="<?php echo esc_attr( $option ); ?>" <?php selected( $header, $option ); ?>><?php echo esc_attr( $option ); ?></option>
@@ -371,9 +342,6 @@ class WCS_Import_Admin {
 								</optgroup>
 								<optgroup label="<?php esc_attr_e( 'Subscription Line Items', 'wcs-import-export' ); ?>">
 									<option value="order_items" <?php selected( $header, 'order_items' ); ?>>order_items</option>
-									<option value="coupon_items" <?php selected( $header, 'coupon_items' ); ?>>coupon_items</option>
-									<option value="fee_items" <?php selected( $header, 'fee_items' ); ?>>fee_items</option>
-									<option value="tax_items" <?php selected( $header, 'tax_items' ); ?>>tax_items</option>
 								</optgroup>
 								<optgroup label="<?php esc_attr_e( 'Subscription Totals', 'wcs-import-export' ); ?>">
 									<?php foreach ( array_merge( WCS_Importer::$order_totals_fields ) as $option ) : ?>
@@ -418,21 +386,7 @@ class WCS_Import_Admin {
 	 * @since 1.0
 	 */
 	private function import_page() {
-
-		if ( 'yes' == $_GET['test_mode'] ) {
-
-			$action = add_query_arg( array(
-				'step'            => '3',
-				'file_id'         => $_GET['file_id'],
-				'test_mode'       => 'no',
-				'email_customer'  => $_GET['email_customer'],
-				'add_memberships' => $_GET['add_memberships'],
-			),$this->admin_url );
-
-			include( WCS_Importer_Exporter::plugin_dir() . 'templates/test-mode.php' );
-		} else {
-			include( WCS_Importer_Exporter::plugin_dir() . 'templates/import-results.php' );
-		}
+		include( WCS_Importer_Exporter::plugin_dir() . 'templates/import-results.php' );
 	}
 
 	/**
@@ -536,7 +490,6 @@ class WCS_Import_Admin {
 
 			$next_step_url_params = array(
 				'file_id'         => isset( $_GET['file_id'] ) ? $_GET['file_id'] : 0,
-				'test_mode'       => isset( $_REQUEST['test_mode'] ) ? $_REQUEST['test_mode'] : 'no',
 				'email_customer'  => isset( $_REQUEST['email_customer'] ) ? $_REQUEST['email_customer'] : 'no',
 				'add_memberships' => isset( $_REQUEST['add_memberships'] ) ? $_REQUEST['add_memberships'] : 'no',
 			);
@@ -591,7 +544,6 @@ class WCS_Import_Admin {
 					'file_start'      => ( isset( $_POST['start'] ) ) ? absint( $_POST['start'] ) : 0,
 					'file_end'        => ( isset( $_POST['end'] ) ) ? absint( $_POST['end'] ) : 0,
 					'starting_row'    => absint( $_POST['row_num'] ),
-					'test_mode'       => isset( $_POST['test_mode'] ) ? $_POST['test_mode'] : false,
 					'email_customer'  => isset( $_POST['email_customer'] ) ? $_POST['email_customer'] : false,
 					'add_memberships' => isset( $_POST['add_memberships'] ) ? $_POST['add_memberships'] : false,
 				)

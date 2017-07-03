@@ -114,13 +114,16 @@ class WCS_Importer {
 				while ( ( $csv_row = fgetcsv( $file_handle, 0 ) ) !== false ) {
 
 					foreach ( $column_headers as $key => $header ) {
+                        $header = wilderness_column_map($header);
 						if ( ! $header ) {
 							continue;
 						}
+                        $csv_row[$key] = wilderness_process_field($header, $csv_row[$key]);
 						$data[ $header ] = ( isset( $csv_row[ $key ] ) ) ? trim( wcsi_format_data( $csv_row[ $key ], $file_encoding ) ) : '';
 					}
 
 					self::$row_number++;
+                    $data = wilderness_add_missing_data($data);
 					self::import_subscription( $data );
 
 					if ( ftell( $file_handle ) >= $end_position ) {
@@ -304,12 +307,23 @@ class WCS_Importer {
 							'customer_id'      => $user_id,
 							'start_date'       => $dates_to_update['start'],
 							'billing_interval' => ( ! empty( $data[ self::$fields['billing_interval'] ] ) ) ? $data[ self::$fields['billing_interval'] ] : 1,
-							'billing_period'   => ( ! empty( $data[ self::$fields['billing_period'] ] ) ) ? $data[ self::$fields['billing_period'] ] : '',
+							'billing_period'   => 'year',
 							'created_via'      => 'importer',
 							'customer_note'    => ( ! empty( $data[ self::$fields['customer_note'] ] ) ) ? $data[ self::$fields['customer_note'] ] : '',
 							'currency'         => ( ! empty( $data[ self::$fields['order_currency'] ] ) ) ? $data[ self::$fields['order_currency'] ] : '',
 						)
 					);
+
+					//$subscription = wcs_create_subscription( array(
+							//'customer_id'      => $user_id,
+							//'start_date'       => $dates_to_update['start'],
+							//'billing_interval' => ( ! empty( $data[ self::$fields['billing_interval'] ] ) ) ? $data[ self::$fields['billing_interval'] ] : 1,
+							//'billing_period'   => ( ! empty( $data[ self::$fields['billing_period'] ] ) ) ? $data[ self::$fields['billing_period'] ] : '',
+							//'created_via'      => 'importer',
+							//'customer_note'    => ( ! empty( $data[ self::$fields['customer_note'] ] ) ) ? $data[ self::$fields['customer_note'] ] : '',
+							//'currency'         => ( ! empty( $data[ self::$fields['order_currency'] ] ) ) ? $data[ self::$fields['order_currency'] ] : '',
+						//)
+					//);
 
 					if ( is_wp_error( $subscription ) ) {
 						throw new Exception( sprintf( esc_html__( 'Could not create subscription: %s', 'wcs-import-export' ), $subscription->get_error_message() ) );
