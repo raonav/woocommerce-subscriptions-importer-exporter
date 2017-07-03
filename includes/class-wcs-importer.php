@@ -117,8 +117,9 @@ class WCS_Importer {
 					}
 
 					self::$row_number++;
-                    $data = wilderness_add_missing_data($data);
-                    die(var_dump($data));
+                    //$data = wilderness_add_missing_data($data);
+                    //die(var_dump($data));
+                    $data["mapped_fields"] = $data;
 					self::import_subscription( $data );
 
 					if ( ftell( $file_handle ) >= $end_position ) {
@@ -151,7 +152,7 @@ class WCS_Importer {
 			'row_number' => self::$row_number,
 		);
 
-		$user_id = wcsi_check_customer( $data, self::$fields, self::$email_customer );
+		$user_id = wcsi_check_customer( $data, $data["mapped_fields"], self::$email_customer );
 
 		if ( is_wp_error( $user_id ) ) {
 			$result['error'][] = $user_id->get_error_message();

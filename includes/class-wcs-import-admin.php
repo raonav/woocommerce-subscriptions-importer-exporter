@@ -260,13 +260,10 @@ class WCS_Import_Admin {
 		check_admin_referer( 'import-upload', 'wcsi_wpnonce' );
 
 		$mapped_fields = array(
-			'custom_user_meta'         => array(),
-			'custom_post_meta'         => array(),
-			'custom_user_post_meta'    => array(),
 			'payment_method_post_meta' => '',
 			'payment_method_user_meta' => '',
 			'customer_id'              => '',
-			'customer_email'           => '',
+			'customer_email'           => 'customer_email',
 			'customer_username'        => '',
 			'customer_password'        => '',
 			'subscription_status'      => '',
@@ -317,7 +314,8 @@ class WCS_Import_Admin {
 			'billing_interval'         => '',
 		);
 
-		$mapping_rules = $_POST['mapto'];
+        $mapping_rules = $mapped_fields;
+            //$_POST['mapto'];
 
 		foreach ( $mapped_fields as $key => $value ) {
 			if ( ! is_array( $value ) ) {
@@ -334,6 +332,8 @@ class WCS_Import_Admin {
 				array_push( $mapped_fields[ $value ], $key );
 			}
 		}
+
+        die(var_dump($mapped_fields));
 
 		update_post_meta( $_GET['file_id'], '_mapped_rules', $mapped_fields );
 	}
@@ -364,7 +364,7 @@ class WCS_Import_Admin {
 					$this->upload_error = $file['error'];
 
 				} else {
-
+                    //$this->save_mapping();
 					$next_step_url_params['step']    = 3;
 					$next_step_url_params['file_id'] = $file['id'];
 

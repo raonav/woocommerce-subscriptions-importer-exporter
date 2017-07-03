@@ -20,9 +20,9 @@ function wcsi_format_data( $data, $file_encoding = 'UTF-8' ) {
  * @param bool $test_mode
  */
 function wcsi_check_customer( $data, $mapped_fields, $test_mode = false, $email_customer = false ) {
-	$customer_email = ( ! empty( $data[ $mapped_fields['customer_email'] ] ) ) ? $data[ $mapped_fields['customer_email'] ] : '';
-	$username       = ( ! empty( $data[ $mapped_fields['customer_username'] ] ) ) ? $data[ $mapped_fields['customer_username'] ] : '';
-	$customer_id    = ( ! empty( $data[ $mapped_fields['customer_id'] ] ) ) ? $data[ $mapped_fields['customer_id'] ] : '';
+	$customer_email = ( ! empty( $data['customer_email'])) ? $data['customer_email'] : '';
+	$username       = ( ! empty( $data['customer_username'])) ? $data['customer_username'] : '';
+	$customer_id    = ( ! empty( $data['customer_id'])) ? $data['customer_id'] : '';
 
 	if ( ! empty( $data[ $mapped_fields['customer_password'] ] ) ) {
 		$password           = $data[ $mapped_fields['customer_password'] ];
