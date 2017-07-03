@@ -16,22 +16,12 @@ class WCS_Import_Admin {
 		$this->rows_per_request = ( defined( 'WCS_IMPORT_ROWS_PER_REQUEST' ) ) ? WCS_IMPORT_ROWS_PER_REQUEST : 20;
 
 		add_action( 'admin_init', array( &$this, 'post_request_handler' ) );
-		add_action( 'admin_init', array( &$this, 'add_import_tool' ) );
 
 		add_action( 'admin_menu', array( &$this, 'add_sub_menu' ), 10 );
 
 		add_action( 'admin_enqueue_scripts', array( &$this, 'enqueue_scripts' ) );
 
 		add_action( 'wp_ajax_wcs_import_request', array( &$this, 'ajax_request_handler' ) );
-	}
-
-	/**
-	 * Adds the Subscriptions CSV Importer into the Tools
-	 *
-	 * @since 1.0
-	 */
-	public function add_import_tool() {
-		register_importer( 'woocommerce_subscription_csv', 'WooCommerce Subscriptions (CSV)', __( 'Import <strong>subscriptions</strong> to your WooCommerce store via a CSV file.', 'wcs-import-export' ), array( &$this, 'admin_page' ) );
 	}
 
 	/**
@@ -172,9 +162,6 @@ class WCS_Import_Admin {
 			case 1 : //Step: Upload File
 				$this->upload_page();
 				break;
-			case 2 : // check mapping
-				$this->mapping_page();
-				break;
 			case 3 :
 				$this->import_page();
 				break;
@@ -252,132 +239,6 @@ class WCS_Import_Admin {
 				</p>
 			</form>
 		<?php endif;
-	}
-
-	/**
-	 * Step 2: Once uploaded file is recognised, the admin will be required to map CSV columns to the required fields.
-	 *
-	 * @since 1.0
-	 */
-	private function mapping_page() {
-
-		$file_id = absint( $_GET['file_id'] );
-		$file    = get_attached_file( $file_id );
-
-		if ( $file ) {
-			$enc = mb_detect_encoding( $file, 'UTF-8, ISO-8859-1', true );
-
-			if ( $enc ) {
-				setlocale( LC_ALL, 'en_US.' . $enc );
-			}
-
-			@ini_set( 'auto_detect_line_endings', true );
-
-			if ( ( $handle = fopen( $file, 'r' ) ) !== false ) {
-
-				$row            = array();
-				$column_headers = fgetcsv( $handle, 0 );
-
-				while ( ( $postmeta = fgetcsv( $handle, 0 ) ) !== false ) {
-
-					foreach ( $column_headers as $key => $column_header ) {
-
-						if ( ! $column_header ) {
-							continue;
-                        }
-                        // MOD: do some prior filtering of the columns
-                        $column_header = wilderness_column_map($column_header);
-						$row[ $column_header ] = ( isset( $postmeta[ $key ] ) ) ? wcsi_format_data( $postmeta[ $key ], $enc ) : '';
-					}
-
-					break;
-				}
-				fclose( $handle );
-			}
-		}
-
-		$url_params = array(
-			'step'            => '3',
-			'file_id'         => $file_id,
-			'email_customer'  => $_GET['email_customer'],
-			'add_memberships' => $_GET['add_memberships'],
-		);
-
-		$action      = add_query_arg( $url_params, $this->admin_url );
-		$button_text = 'Run Import';
-		$row_number  = 1;
-
-		$customer_fields     = array( 'customer_id', 'customer_email', 'customer_username', 'customer_password' );
-		$subscription_fields = array( 'start_date', 'next_payment_date', 'end_date', 'trial_end_date', 'last_payment_date', 'billing_interval', 'billing_period' );
-		?>
-
-		<h3><?php esc_html_e( 'Step 2: Map Fields to Column Names', 'wcs-import-export' ); ?></h3>
-		<form method="post" action="<?php echo esc_attr( $action ); ?>">
-			<?php wp_nonce_field( 'import-upload', 'wcsi_wpnonce' ); ?>
-			<input type="hidden" name="action" value="field_mapping" />
-			<table class="widefat widefat_importer">
-				<thead>
-					<tr>
-						<th><?php esc_html_e( 'Map to', 'wcs-import-export' ); ?></th>
-						<th><?php esc_html_e( 'Column Header', 'wcs-import-export' ); ?></th>
-						<th><?php esc_html_e( 'Example Column Value', 'wcs-import-export' ); ?></th>
-					</tr>
-				</thead>
-                <tbody>
-                    <?php //MOD: A whole lotta changes ?>
-					<?php foreach ( $row as $header => $sample ) : ?>
-					<tr <?php echo ( ++$row_number % 2 ) ? '' : 'class="alternate"'; ?>>
-						<td>
-							<select name="mapto[<?php echo esc_attr( $header ); ?>]">
-								<option value="0"><?php esc_html_e( 'Do not import', 'wcs-import-export' ); ?></option>
-								<optgroup label="<?php esc_attr_e( 'Customer Details', 'wcs-import-export' ); ?>">
-									<?php foreach ( $customer_fields as $option ) : ?>
-										<option value="<?php echo esc_attr( $option ); ?>" <?php selected( $header, $option ); ?>><?php echo esc_attr( $option ); ?></option>
-									<?php endforeach; ?>
-								</optgroup>
-								<optgroup label="<?php esc_attr_e( 'Subscription Billing Schedule', 'wcs-import-export' ); ?>">
-									<?php foreach ( $subscription_fields as $option ) : ?>
-										<option value="<?php echo esc_attr( $option ); ?>" <?php selected( $header, $option ); ?>><?php echo esc_attr( $option ); ?></option>
-									<?php endforeach; ?>
-								</optgroup>
-								<optgroup label="<?php esc_attr_e( 'Subscription Line Items', 'wcs-import-export' ); ?>">
-									<option value="order_items" <?php selected( $header, 'order_items' ); ?>>order_items</option>
-								</optgroup>
-								<optgroup label="<?php esc_attr_e( 'Subscription Totals', 'wcs-import-export' ); ?>">
-									<?php foreach ( array_merge( WCS_Importer::$order_totals_fields ) as $option ) : ?>
-										<option value="<?php echo esc_attr( $option ); ?>" <?php selected( $header, $option ); ?>><?php echo esc_attr( $option ); ?></option>
-									<?php endforeach; ?>
-								</optgroup>
-								<optgroup label="<?php esc_attr_e( 'Payment Method Details', 'wcs-import-export' ); ?>">
-									<option value="payment_method" <?php selected( $header, 'payment_method' ); ?>>payment_method</option>
-									<option value="payment_method_title" <?php selected( $header, 'payment_method_title' ); ?>>payment_method_title</option>
-									<option value="payment_method_post_meta" <?php selected( $header, 'payment_method_post_meta' ); ?>>payment_method_post_meta</option>
-									<option value="payment_method_user_meta" <?php selected( $header, 'payment_method_user_meta' ); ?>>payment_method_user_meta</option>
-									<option value="requires_manual_renewal" <?php selected( $header, 'requires_manual_renewal' ); ?>>requires_manual_renewal</option>
-								</optgroup>
-								<optgroup label="<?php esc_attr_e( 'Address Details', 'wcs-import-export' ); ?>">
-									<?php foreach ( WCS_Importer::$user_meta_fields as $option ) : ?>
-										<option value="<?php echo esc_attr( $option ); ?>" <?php selected( $header, $option ); ?>><?php echo esc_attr( $option ); ?></option>
-									<?php endforeach; ?>
-								</optgroup>
-								<optgroup label="<?php esc_attr_e( 'Custom', 'wcs-import-export' ); ?>">
-									<option value="custom_user_post_meta">custom_user_post_meta</option>
-									<option value="custom_user_meta">custom_user_meta</option>
-									<option value="custom_post_meta">custom_post_meta</option>
-								</optgroup>
-							</select>
-						</td>
-						<td width="25%"><?php echo esc_html( $header ); ?></td>
-						<td><code><?php echo ( ! empty( $sample ) ) ? esc_html( $sample ) : '-'; ?></code></td>
-					</tr>
-					<?php endforeach; ?>
-				</tbody>
-			</table>
-			<p class="submit">
-				<input type="submit" class="button" value="<?php echo esc_attr( $button_text ); ?>" />
-			</p>
-		</form>
-		<?php
 	}
 
 	/**
@@ -501,6 +362,7 @@ class WCS_Import_Admin {
 				if ( isset( $file['error'] ) ) {
 
 					$this->upload_error = $file['error'];
+
 				} else {
 
 					$next_step_url_params['step']    = 3;
@@ -509,13 +371,6 @@ class WCS_Import_Admin {
 					wp_safe_redirect( add_query_arg( $next_step_url_params, $this->admin_url ) );
 					exit;
 				}
-			} elseif ( 'field_mapping' == $_POST['action'] ) {
-
-				$this->save_mapping();
-				$next_step_url_params['step'] = 3;
-
-				wp_safe_redirect( add_query_arg( $next_step_url_params, $this->admin_url ) );
-				exit;
 			}
 		}
 	}

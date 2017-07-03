@@ -18,7 +18,6 @@ class WCS_Importer {
 	public static $all_virtual      = true;
 
 	/* Front-end import settings chosen */
-	public static $test_mode;
 	public static $email_customer;
 	public static $add_memberships;
 
@@ -70,7 +69,6 @@ class WCS_Importer {
 		$file_path = addslashes( $data['file_path'] );
 
 		self::$row_number      = $data['starting_row'];
-		self::$test_mode       = ( 'true' == $data['test_mode'] ) ? true : false;
 		self::$email_customer  = ( 'true' == $data['email_customer'] ) ? true : false;
 		self::$add_memberships = ( 'true' == $data['add_memberships'] ) ? true : false;
 		self::$fields          = $data['mapped_fields'];
@@ -153,16 +151,13 @@ class WCS_Importer {
 			'row_number' => self::$row_number,
 		);
 
-		$user_id = wcsi_check_customer( $data, self::$fields, self::$test_mode, self::$email_customer );
+		$user_id = wcsi_check_customer( $data, self::$fields, self::$email_customer );
 
 		if ( is_wp_error( $user_id ) ) {
 			$result['error'][] = $user_id->get_error_message();
 
 		} elseif ( empty( $user_id ) ) {
 			$result['error'][] = esc_html__( 'An error occurred with the customer information provided.', 'wcs-import-export' );
-
-		} elseif ( ! self::$test_mode ) {
-			$result['username'] = sprintf( '<a href="%s">%s</a>', get_edit_user_link( $user_id ), self::get_user_display_name( $user_id ) );
 		}
 
 		if ( ! empty( $result['error'] ) ) {
@@ -287,177 +282,168 @@ class WCS_Importer {
 			}
 		}
 
-		if ( empty( $result['error'] ) || self::$test_mode ) {
-			try {
-				if ( ! self::$test_mode ) {
-					$wpdb->query( 'START TRANSACTION' );
+        try {
+            $wpdb->query( 'START TRANSACTION' );
 
-					// add custom user meta before subscription is created
-					foreach ( self::$fields['custom_user_meta'] as $meta_key ) {
-						if ( ! empty( $data[ $meta_key ] ) ) {
-							update_user_meta( $user_id, $meta_key, $data[ $meta_key ] );
-						}
-					}
+            // add custom user meta before subscription is created
+            foreach ( self::$fields['custom_user_meta'] as $meta_key ) {
+                if ( ! empty( $data[ $meta_key ] ) ) {
+                    update_user_meta( $user_id, $meta_key, $data[ $meta_key ] );
+                }
+            }
 
-					$subscription = wcs_create_subscription( array(
-							'customer_id'      => $user_id,
-							'start_date'       => $dates_to_update['start'],
-							'billing_interval' => ( ! empty( $data[ self::$fields['billing_interval'] ] ) ) ? $data[ self::$fields['billing_interval'] ] : 1,
-							'billing_period'   => 'year',
-							'created_via'      => 'importer',
-							'customer_note'    => ( ! empty( $data[ self::$fields['customer_note'] ] ) ) ? $data[ self::$fields['customer_note'] ] : '',
-							'currency'         => ( ! empty( $data[ self::$fields['order_currency'] ] ) ) ? $data[ self::$fields['order_currency'] ] : '',
-						)
-					);
+            $subscription = wcs_create_subscription( array(
+                    'customer_id'      => $user_id,
+                    'start_date'       => $dates_to_update['start'],
+                    'billing_interval' => ( ! empty( $data[ self::$fields['billing_interval'] ] ) ) ? $data[ self::$fields['billing_interval'] ] : 1,
+                    'billing_period'   => 'year',
+                    'created_via'      => 'importer',
+                    'customer_note'    => ( ! empty( $data[ self::$fields['customer_note'] ] ) ) ? $data[ self::$fields['customer_note'] ] : '',
+                    'currency'         => ( ! empty( $data[ self::$fields['order_currency'] ] ) ) ? $data[ self::$fields['order_currency'] ] : '',
+                )
+            );
 
-					//$subscription = wcs_create_subscription( array(
-							//'customer_id'      => $user_id,
-							//'start_date'       => $dates_to_update['start'],
-							//'billing_interval' => ( ! empty( $data[ self::$fields['billing_interval'] ] ) ) ? $data[ self::$fields['billing_interval'] ] : 1,
-							//'billing_period'   => ( ! empty( $data[ self::$fields['billing_period'] ] ) ) ? $data[ self::$fields['billing_period'] ] : '',
-							//'created_via'      => 'importer',
-							//'customer_note'    => ( ! empty( $data[ self::$fields['customer_note'] ] ) ) ? $data[ self::$fields['customer_note'] ] : '',
-							//'currency'         => ( ! empty( $data[ self::$fields['order_currency'] ] ) ) ? $data[ self::$fields['order_currency'] ] : '',
-						//)
-					//);
+            //$subscription = wcs_create_subscription( array(
+                    //'customer_id'      => $user_id,
+                    //'start_date'       => $dates_to_update['start'],
+                    //'billing_interval' => ( ! empty( $data[ self::$fields['billing_interval'] ] ) ) ? $data[ self::$fields['billing_interval'] ] : 1,
+                    //'billing_period'   => ( ! empty( $data[ self::$fields['billing_period'] ] ) ) ? $data[ self::$fields['billing_period'] ] : '',
+                    //'created_via'      => 'importer',
+                    //'customer_note'    => ( ! empty( $data[ self::$fields['customer_note'] ] ) ) ? $data[ self::$fields['customer_note'] ] : '',
+                    //'currency'         => ( ! empty( $data[ self::$fields['order_currency'] ] ) ) ? $data[ self::$fields['order_currency'] ] : '',
+                //)
+            //);
 
-					if ( is_wp_error( $subscription ) ) {
-						throw new Exception( sprintf( esc_html__( 'Could not create subscription: %s', 'wcs-import-export' ), $subscription->get_error_message() ) );
-					}
+            if ( is_wp_error( $subscription ) ) {
+                throw new Exception( sprintf( esc_html__( 'Could not create subscription: %s', 'wcs-import-export' ), $subscription->get_error_message() ) );
+            }
 
-					foreach ( $post_meta as $meta_data ) {
-						update_post_meta( $subscription->id, $meta_data['key'], $meta_data['value'] );
-					}
+            foreach ( $post_meta as $meta_data ) {
+                update_post_meta( $subscription->id, $meta_data['key'], $meta_data['value'] );
+            }
 
-					foreach ( self::$fields['custom_post_meta'] as $meta_key ) {
-						if ( ! empty( $data[ $meta_key ] ) ) {
-							update_post_meta( $subscription->id, $meta_key, $data[ $meta_key ] );
-						}
-					}
+            foreach ( self::$fields['custom_post_meta'] as $meta_key ) {
+                if ( ! empty( $data[ $meta_key ] ) ) {
+                    update_post_meta( $subscription->id, $meta_key, $data[ $meta_key ] );
+                }
+            }
 
-					foreach ( self::$fields['custom_user_post_meta'] as $meta_key ) {
-						if ( ! empty( $data[ $meta_key ] ) ) {
-							update_post_meta( $subscription->id, $meta_key, $data[ $meta_key ] );
-							update_user_meta( $user_id, $meta_key, $data[ $meta_key ] );
-						}
-					}
+            foreach ( self::$fields['custom_user_post_meta'] as $meta_key ) {
+                if ( ! empty( $data[ $meta_key ] ) ) {
+                    update_post_meta( $subscription->id, $meta_key, $data[ $meta_key ] );
+                    update_user_meta( $user_id, $meta_key, $data[ $meta_key ] );
+                }
+            }
 
-					$subscription->update_dates( $dates_to_update );
+            $subscription->update_dates( $dates_to_update );
 
-					add_filter( 'woocommerce_can_subscription_be_updated_to_cancelled', '__return_true' );
-					add_filter( 'woocommerce_can_subscription_be_updated_to_pending-cancel', '__return_true' );
+            add_filter( 'woocommerce_can_subscription_be_updated_to_cancelled', '__return_true' );
+            add_filter( 'woocommerce_can_subscription_be_updated_to_pending-cancel', '__return_true' );
 
-					$subscription->update_status( $status );
+            $subscription->update_status( $status );
 
-					remove_filter( 'woocommerce_can_subscription_be_updated_to_cancelled', '__return_true' );
-					remove_filter( 'woocommerce_can_subscription_be_updated_to_pending-cancel', '__return_true' );
+            remove_filter( 'woocommerce_can_subscription_be_updated_to_cancelled', '__return_true' );
+            remove_filter( 'woocommerce_can_subscription_be_updated_to_pending-cancel', '__return_true' );
 
-					if ( ! $set_manual && ! $subscription->has_status( wcs_get_subscription_ended_statuses() ) ) { // don't bother trying to set payment meta on a subscription that won't ever renew
-						$result['warning'] = array_merge( $result['warning'], self::set_payment_meta( $subscription, $data ) );
-					}
+            if ( ! $set_manual && ! $subscription->has_status( wcs_get_subscription_ended_statuses() ) ) { // don't bother trying to set payment meta on a subscription that won't ever renew
+                $result['warning'] = array_merge( $result['warning'], self::set_payment_meta( $subscription, $data ) );
+            }
 
-					if ( $set_manual || $requires_manual_renewal ) {
-						$subscription->update_manual();
-					}
+            if ( $set_manual || $requires_manual_renewal ) {
+                $subscription->update_manual();
+            }
 
-					if ( ! empty( $data[ self::$fields['order_notes'] ] ) ) {
-						$order_notes = explode( ';', $data[ self::$fields['order_notes'] ] );
+            if ( ! empty( $data[ self::$fields['order_notes'] ] ) ) {
+                $order_notes = explode( ';', $data[ self::$fields['order_notes'] ] );
 
-						foreach ( $order_notes as $order_note ) {
-							$subscription->add_order_note( $order_note );
-						}
-					}
-				} else {
-					$subscription = null;
-				}
+                foreach ( $order_notes as $order_note ) {
+                    $subscription->add_order_note( $order_note );
+                }
+            }
 
-				if ( $set_manual ) {
-					$result['warning'][] = esc_html__( 'No payment method was given in CSV and so the subscription has been set to manual renewal.', 'wcs-import-export' );
-				} else if ( $requires_manual_renewal ) {
-					$result['warning'][] = esc_html__( 'Import forced manual renewal.', 'wcs-import-export' );
-				}
+            if ( $set_manual ) {
+                $result['warning'][] = esc_html__( 'No payment method was given in CSV and so the subscription has been set to manual renewal.', 'wcs-import-export' );
+            } else if ( $requires_manual_renewal ) {
+                $result['warning'][] = esc_html__( 'Import forced manual renewal.', 'wcs-import-export' );
+            }
 
-				if ( ! empty( $data[ self::$fields['coupon_items'] ] ) ) {
-					self::add_coupons( $subscription, $data );
-				}
+            if ( ! empty( $data[ self::$fields['coupon_items'] ] ) ) {
+                self::add_coupons( $subscription, $data );
+            }
 
-				$chosen_tax_rate_id = 0;
-				if ( ! empty( $data[ self::$fields['tax_items'] ] ) ) {
-					$chosen_tax_rate_id = self::add_taxes( $subscription, $data );
-				}
+            $chosen_tax_rate_id = 0;
+            if ( ! empty( $data[ self::$fields['tax_items'] ] ) ) {
+                $chosen_tax_rate_id = self::add_taxes( $subscription, $data );
+            }
 
-				if ( ! empty( $data[ self::$fields['order_items'] ] ) ) {
-					if ( is_numeric( $data[ self::$fields['order_items'] ] ) ) {
-						$product_id      = absint( $data[ self::$fields['order_items'] ] );
-						$result['items'] = self::add_product( $subscription, array( 'product_id' => $product_id ), $chosen_tax_rate_id );
+            if ( ! empty( $data[ self::$fields['order_items'] ] ) ) {
+                if ( is_numeric( $data[ self::$fields['order_items'] ] ) ) {
+                    $product_id      = absint( $data[ self::$fields['order_items'] ] );
+                    $result['items'] = self::add_product( $subscription, array( 'product_id' => $product_id ), $chosen_tax_rate_id );
 
-						if ( ! self::$test_mode && self::$add_memberships ) {
-							self::maybe_add_memberships( $user_id, $subscription->id, $product_id );
-						}
-					} else {
-						$order_items = explode( ';', $data[ self::$fields['order_items'] ] );
+                    if ( self::$add_memberships ) {
+                        self::maybe_add_memberships( $user_id, $subscription->id, $product_id );
+                    }
+                } else {
+                    $order_items = explode( ';', $data[ self::$fields['order_items'] ] );
 
-						if ( ! empty( $order_items ) ) {
-							foreach ( $order_items as $order_item ) {
-								$item_data = array();
+                    if ( ! empty( $order_items ) ) {
+                        foreach ( $order_items as $order_item ) {
+                            $item_data = array();
 
-								foreach ( explode( '|', $order_item ) as $item ) {
-									list( $name, $value ) = explode( ':', $item );
-									$item_data[ trim( $name ) ] = trim( $value );
-								}
+                            foreach ( explode( '|', $order_item ) as $item ) {
+                                list( $name, $value ) = explode( ':', $item );
+                                $item_data[ trim( $name ) ] = trim( $value );
+                            }
 
-								$result['items'] .= self::add_product( $subscription, $item_data, $chosen_tax_rate_id ) . '<br/>';
+                            $result['items'] .= self::add_product( $subscription, $item_data, $chosen_tax_rate_id ) . '<br/>';
 
-								if ( ! self::$test_mode && self::$add_memberships ) {
-									self::maybe_add_memberships( $user_id, $subscription->id, $item_data['product_id'] );
-								}
-							}
-						}
-					}
-				}
+                            if ( self::$add_memberships ) {
+                                self::maybe_add_memberships( $user_id, $subscription->id, $item_data['product_id'] );
+                            }
+                        }
+                    }
+                }
+            }
 
-				if ( ! empty( $data[ self::$fields['fee_items'] ] ) ) {
-					self::add_fees( $subscription, $data, $chosen_tax_rate_id );
-				}
+            if ( ! empty( $data[ self::$fields['fee_items'] ] ) ) {
+                self::add_fees( $subscription, $data, $chosen_tax_rate_id );
+            }
 
-				if ( ! empty( $data[ self::$fields['shipping_method'] ] ) ) {
-					$shipping_method = self::add_shipping_lines( $subscription, $data, $chosen_tax_rate_id );
-				}
+            if ( ! empty( $data[ self::$fields['shipping_method'] ] ) ) {
+                $shipping_method = self::add_shipping_lines( $subscription, $data, $chosen_tax_rate_id );
+            }
 
-				// only show the following warnings on the import when the subscription requires shipping
-				if ( ! self::$all_virtual ) {
-					if ( ! empty( $missing_shipping_addresses ) ) {
-						$result['warning'][] = sprintf( esc_html__( 'The following shipping address fields have been left empty: %s. ', 'wcs-import-export' ), rtrim( implode( ', ', $missing_shipping_addresses ), ',' ) );
-					}
+            // only show the following warnings on the import when the subscription requires shipping
+            if ( ! self::$all_virtual ) {
+                if ( ! empty( $missing_shipping_addresses ) ) {
+                    $result['warning'][] = sprintf( esc_html__( 'The following shipping address fields have been left empty: %s. ', 'wcs-import-export' ), rtrim( implode( ', ', $missing_shipping_addresses ), ',' ) );
+                }
 
-					if ( ! empty( $missing_billing_addresses ) ) {
-						$result['warning'][] = sprintf( esc_html__( 'The following billing address fields have been left empty: %s. ', 'wcs-import-export' ), rtrim( implode( ', ', $missing_billing_addresses ), ',' ) );
-					}
+                if ( ! empty( $missing_billing_addresses ) ) {
+                    $result['warning'][] = sprintf( esc_html__( 'The following billing address fields have been left empty: %s. ', 'wcs-import-export' ), rtrim( implode( ', ', $missing_billing_addresses ), ',' ) );
+                }
 
-					if ( empty( $shipping_method ) ) {
-						$result['warning'][] = esc_html__( 'Shipping method and title for the subscription have been left as empty. ', 'wcs-import-export' );
-					}
-				}
+                if ( empty( $shipping_method ) ) {
+                    $result['warning'][] = esc_html__( 'Shipping method and title for the subscription have been left as empty. ', 'wcs-import-export' );
+                }
+            }
 
-				$wpdb->query( 'COMMIT' );
+            $wpdb->query( 'COMMIT' );
 
-			} catch ( Exception $e ) {
-				$wpdb->query( 'ROLLBACK' );
-				$result['error'][] = $e->getMessage();
-			}
-		}
+        } catch ( Exception $e ) {
+            $wpdb->query( 'ROLLBACK' );
+            $result['error'][] = $e->getMessage();
+        }
 
-		if ( ! self::$test_mode ) {
+        if ( empty( $result['error'] ) ) {
+            $result['status']              = 'success';
+            $result['subscription']        = sprintf( '<a href="%s">#%s</a>', esc_url( admin_url( 'post.php?post=' . absint( $subscription->id ) . '&action=edit' ) ), $subscription->get_order_number() );
+            $result['subscription_status'] = $subscription->get_status();
 
-			if ( empty( $result['error'] ) ) {
-				$result['status']              = 'success';
-				$result['subscription']        = sprintf( '<a href="%s">#%s</a>', esc_url( admin_url( 'post.php?post=' . absint( $subscription->id ) . '&action=edit' ) ), $subscription->get_order_number() );
-				$result['subscription_status'] = $subscription->get_status();
-
-			} else {
-				$result['status']  = 'failed';
-			}
-		}
+        } else {
+            $result['status']  = 'failed';
+        }
 
 		array_push( self::$results, $result );
 	}
@@ -645,13 +631,11 @@ class WCS_Importer {
 					$discount_amount = $coupon->discount_amount;
 				}
 
-				if ( ! self::$test_mode ) {
-					$coupon_id = $subscription->add_coupon( $coupon_code, $discount_amount );
+                $coupon_id = $subscription->add_coupon( $coupon_code, $discount_amount );
 
-					if ( ! $coupon_id ) {
-						throw new Exception( sprintf( esc_html__( 'Coupon "%s" could not be added to subscription.', 'wcs-import-export' ), $coupon_code ) );
-					}
-				}
+                if ( ! $coupon_id ) {
+                    throw new Exception( sprintf( esc_html__( 'Coupon "%s" could not be added to subscription.', 'wcs-import-export' ), $coupon_code ) );
+                }
 			}
 		}
 	}
@@ -704,6 +688,7 @@ class WCS_Importer {
 			foreach ( $_product->variation_data as $attribute => $variation ) {
 				$item_args['variation'][ $attribute ] = $variation;
 			}
+
 			$product_string .= ' [#' . $data['product_id'] . ']';
 		}
 
@@ -716,30 +701,28 @@ class WCS_Importer {
 			$item_args['totals']['tax_data']['subtotal'] = array( $chosen_tax_rate_id => $item_args['totals']['tax'] );
 		}
 
-		if ( ! self::$test_mode ) {
-			$item_id = $subscription->add_product( $_product, $item_args['qty'], $item_args );
+        $item_id = $subscription->add_product( $_product, $item_args['qty'], $item_args );
 
-			// Set the name used in the CSV if it's different to the product's current title (which is what WC_Abstract_Order::add_product() uses)
-			if ( ! empty( $data['name'] ) && $_product->get_title() != $data['name'] ) {
-				wc_update_order_item( $item_id, array( 'order_item_name' => $data['name'] ) );
-			}
+        // Set the name used in the CSV if it's different to the product's current title (which is what WC_Abstract_Order::add_product() uses)
+        if ( ! empty( $data['name'] ) && $_product->get_title() != $data['name'] ) {
+            wc_update_order_item( $item_id, array( 'order_item_name' => $data['name'] ) );
+        }
 
-			// Add any meta data for the line item
-			if ( ! empty( $data['meta'] ) ) {
-				foreach ( explode( '+', $data['meta'] ) as $meta ) {
-					$meta = explode( '=', $meta );
-					wc_update_order_item_meta( $item_id, $meta[0], $meta[1] );
-				}
-			}
+        // Add any meta data for the line item
+        if ( ! empty( $data['meta'] ) ) {
+            foreach ( explode( '+', $data['meta'] ) as $meta ) {
+                $meta = explode( '=', $meta );
+                wc_update_order_item_meta( $item_id, $meta[0], $meta[1] );
+            }
+        }
 
-			if ( ! $item_id ) {
-				throw new Exception( __( 'An unexpected error occurred when trying to add product "%s" to your subscription. The error was caught and no subscription for this row will be created. Please fix up the data from your CSV and try again.', 'wcs-import-export' ) );
-			}
+        if ( ! $item_id ) {
+            throw new Exception( __( 'An unexpected error occurred when trying to add product "%s" to your subscription. The error was caught and no subscription for this row will be created. Please fix up the data from your CSV and try again.', 'wcs-import-export' ) );
+        }
 
-			if ( ! empty( self::$row[ self::$fields['download_permissions'] ] ) && ( 'true' == self::$row[ self::$fields['download_permissions'] ] || 1 == (int) self::$row[ self::$fields['download_permissions'] ] ) ) {
-				self::save_download_permissions( $subscription, $_product, $item_args['qty'] );
-			}
-		}
+        if ( ! empty( self::$row[ self::$fields['download_permissions'] ] ) && ( 'true' == self::$row[ self::$fields['download_permissions'] ] || 1 == (int) self::$row[ self::$fields['download_permissions'] ] ) ) {
+            self::save_download_permissions( $subscription, $_product, $item_args['qty'] );
+        }
 
 		return $product_string;
 	}
@@ -787,13 +770,11 @@ class WCS_Importer {
 					}
 				}
 
-				if ( ! self::$test_mode ) {
-					$fee_id = $subscription->add_fee( $fee );
+                $fee_id = $subscription->add_fee( $fee );
 
-					if ( ! $fee_id ) {
-						throw new Exception( __( 'Could not add the fee to your subscription, the subscription has not been imported.', 'wcs-import-export' ) );
-					}
-				}
+                if ( ! $fee_id ) {
+                    throw new Exception( __( 'Could not add the fee to your subscription, the subscription has not been imported.', 'wcs-import-export' ) );
+                }
 			}
 		}
 	}
@@ -828,21 +809,19 @@ class WCS_Importer {
 				$shipping_method = isset( $shipping_line['method_id'] ) ? $shipping_line['method_id'] : '';
 				$shipping_title  = isset( $shipping_line['method_title'] ) ? $shipping_line['method_title'] : $shipping_method;
 
-				if ( ! self::$test_mode ) {
-					$rate = new WC_Shipping_Rate( $shipping_method, $shipping_title, isset( $shipping_line['total'] ) ? floatval( $shipping_line['total'] ) : $default_total, array(), $shipping_method );
+                $rate = new WC_Shipping_Rate( $shipping_method, $shipping_title, isset( $shipping_line['total'] ) ? floatval( $shipping_line['total'] ) : $default_total, array(), $shipping_method );
 
-					if ( ! empty( $data[ self::$fields['order_shipping_tax'] ] ) && ! empty( $chosen_tax_rate_id ) ) {
-						$rate->taxes = array( $chosen_tax_rate_id => $data[ self::$fields['order_shipping_tax'] ] );
-					}
+                if ( ! empty( $data[ self::$fields['order_shipping_tax'] ] ) && ! empty( $chosen_tax_rate_id ) ) {
+                    $rate->taxes = array( $chosen_tax_rate_id => $data[ self::$fields['order_shipping_tax'] ] );
+                }
 
-					$shipping_id = $subscription->add_shipping( $rate );
-					if ( ! $shipping_id ) {
-						throw new Exception( __( 'An error occurred when trying to add the shipping item to the subscription, a subscription not been created for this row.', 'wcs-import-export' ) );
-					}
+                $shipping_id = $subscription->add_shipping( $rate );
+                if ( ! $shipping_id ) {
+                    throw new Exception( __( 'An error occurred when trying to add the shipping item to the subscription, a subscription not been created for this row.', 'wcs-import-export' ) );
+                }
 
-					update_post_meta( $subscription->id, '_shipping_method', $shipping_method );
-					update_post_meta( $subscription->id, '_shipping_method_title', $shipping_title );
-				}
+                update_post_meta( $subscription->id, '_shipping_method', $shipping_method );
+                update_post_meta( $subscription->id, '_shipping_method_title', $shipping_title );
 			}
 		}
 
@@ -888,16 +867,14 @@ class WCS_Importer {
 				}
 
 				if ( ! empty( $tax_rate ) ) {
-					if ( ! self::$test_mode ) {
-						$tax_rate = array_pop( $tax_rate );
-						$tax_id   = $subscription->add_tax( $tax_rate->tax_rate_id, ( ! empty( $data[ self::$fields['order_shipping_tax'] ] ) ) ? $data[ self::$fields['order_shipping_tax'] ] : 0, ( ! empty( $data[ self::$fields['order_tax'] ] ) ) ? $data[ self::$fields['order_tax'] ] : 0 );
+                    $tax_rate = array_pop( $tax_rate );
+                    $tax_id   = $subscription->add_tax( $tax_rate->tax_rate_id, ( ! empty( $data[ self::$fields['order_shipping_tax'] ] ) ) ? $data[ self::$fields['order_shipping_tax'] ] : 0, ( ! empty( $data[ self::$fields['order_tax'] ] ) ) ? $data[ self::$fields['order_tax'] ] : 0 );
 
-						if ( ! $tax_id ) {
-							$result['warning'][] = esc_html__( 'Tax line item could not properly be added to this subscription. Please review this subscription.', 'wcs-import-export' );
-						} else {
-							$chosen_tax_rate_id = $tax_rate->tax_rate_id;
-						}
-					}
+                    if ( ! $tax_id ) {
+                        $result['warning'][] = esc_html__( 'Tax line item could not properly be added to this subscription. Please review this subscription.', 'wcs-import-export' );
+                    } else {
+                        $chosen_tax_rate_id = $tax_rate->tax_rate_id;
+                    }
 				} else {
 					$result['warning'][] = sprintf( esc_html__( 'The tax code "%s" could not be found in your store.', 'wcs-import-export' ), $tax_data['code'] );
 				}
