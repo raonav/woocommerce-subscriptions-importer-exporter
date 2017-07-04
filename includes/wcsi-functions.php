@@ -17,9 +17,8 @@ function wcsi_format_data( $data, $file_encoding = 'UTF-8' ) {
  * @since 1.0
  * @param array $data
  * @param array $mapped_fields
- * @param bool $test_mode
  */
-function wcsi_check_customer( $data, $mapped_fields, $test_mode = false, $email_customer = false ) {
+function wcsi_check_customer( $data, $email_customer = false ) {
 	$customer_email = ( ! empty( $data['customer_email'])) ? $data['customer_email'] : '';
 	$username       = ( ! empty( $data['customer_username'])) ? $data['customer_username'] : '';
 	$customer_id    = ( ! empty( $data['customer_id'])) ? $data['customer_id'] : '';
@@ -42,93 +41,85 @@ function wcsi_check_customer( $data, $mapped_fields, $test_mode = false, $email_
 			$found_customer = username_exists( $username );
 		} elseif ( is_email( $customer_email ) ) {
 
-			// In test mode, we just want to know if a user account can be created - as we have a valid email address, it can be.
-			if ( $test_mode ) {
+            if ( empty( $username ) ) {
 
-				$found_customer = true;
-			} else {
+                $maybe_username = explode( '@', $customer_email );
+                $maybe_username = sanitize_user( $maybe_username[0] );
+                $counter        = 1;
+                $username       = $maybe_username;
 
-				// Not in test mode, create a user account for this email
-				if ( empty( $username ) ) {
+                while ( username_exists( $username ) ) {
+                    $username = $maybe_username . $counter;
+                    $counter++;
+                }
+            }
 
-					$maybe_username = explode( '@', $customer_email );
-					$maybe_username = sanitize_user( $maybe_username[0] );
-					$counter        = 1;
-					$username       = $maybe_username;
+            $found_customer = wp_create_user( $username, $password, $customer_email );
 
-					while ( username_exists( $username ) ) {
-						$username = $maybe_username . $counter;
-						$counter++;
-					}
-				}
+            if ( ! is_wp_error( $found_customer ) ) {
 
-				$found_customer = wp_create_user( $username, $password, $customer_email );
+                // update user meta data
+                foreach ( WCS_Importer::$user_meta_fields as $key ) {
+                    switch ( $key ) {
+                        case 'billing_email':
+                            // user billing email if set in csv otherwise use the user's account email
+                            $meta_value = ( ! empty( $data[ $mapped_fields[ $key ] ] ) ) ? $data[ $mapped_fields[ $key ] ] : $customer_email;
+                            update_user_meta( $found_customer, $key, $meta_value );
+                            break;
 
-				if ( ! is_wp_error( $found_customer ) ) {
+                        case 'billing_first_name':
+                            $meta_value = ( ! empty( $data[ $mapped_fields[ $key ] ] ) ) ? $data[ $mapped_fields[ $key ] ] : $username;
+                            update_user_meta( $found_customer, $key, $meta_value );
+                            update_user_meta( $found_customer, 'first_name', $meta_value );
+                            break;
 
-					// update user meta data
-					foreach ( WCS_Importer::$user_meta_fields as $key ) {
-						switch ( $key ) {
-							case 'billing_email':
-								// user billing email if set in csv otherwise use the user's account email
-								$meta_value = ( ! empty( $data[ $mapped_fields[ $key ] ] ) ) ? $data[ $mapped_fields[ $key ] ] : $customer_email;
-								update_user_meta( $found_customer, $key, $meta_value );
-								break;
+                        case 'billing_last_name':
+                            $meta_value = ( ! empty( $data[ $mapped_fields[ $key ] ] ) ) ? $data[ $mapped_fields[ $key ] ] : '';
 
-							case 'billing_first_name':
-								$meta_value = ( ! empty( $data[ $mapped_fields[ $key ] ] ) ) ? $data[ $mapped_fields[ $key ] ] : $username;
-								update_user_meta( $found_customer, $key, $meta_value );
-								update_user_meta( $found_customer, 'first_name', $meta_value );
-								break;
+                            update_user_meta( $found_customer, $key, $meta_value );
+                            update_user_meta( $found_customer, 'last_name', $meta_value );
+                            break;
 
-							case 'billing_last_name':
-								$meta_value = ( ! empty( $data[ $mapped_fields[ $key ] ] ) ) ? $data[ $mapped_fields[ $key ] ] : '';
+                        case 'shipping_first_name':
+                        case 'shipping_last_name':
+                        case 'shipping_address_1':
+                        case 'shipping_address_2':
+                        case 'shipping_city':
+                        case 'shipping_postcode':
+                        case 'shipping_state':
+                        case 'shipping_country':
+                            // Set the shipping address fields to match the billing fields if not specified in CSV
+                            $meta_value = ( ! empty( $data[ $mapped_fields[ $key ] ] ) ) ? $data[ $mapped_fields[ $key ] ] : '';
 
-								update_user_meta( $found_customer, $key, $meta_value );
-								update_user_meta( $found_customer, 'last_name', $meta_value );
-								break;
+                            if ( empty( $meta_value ) ) {
+                                $n_key      = str_replace( 'shipping', 'billing', $key );
+                                $meta_value = ( ! empty( $data[ $mapped_fields[ $n_key ] ] ) ) ? $data[ $mapped_fields[ $n_key ] ] : '';
+                            }
 
-							case 'shipping_first_name':
-							case 'shipping_last_name':
-							case 'shipping_address_1':
-							case 'shipping_address_2':
-							case 'shipping_city':
-							case 'shipping_postcode':
-							case 'shipping_state':
-							case 'shipping_country':
-								// Set the shipping address fields to match the billing fields if not specified in CSV
-								$meta_value = ( ! empty( $data[ $mapped_fields[ $key ] ] ) ) ? $data[ $mapped_fields[ $key ] ] : '';
+                            update_user_meta( $found_customer, $key, $meta_value );
+                            break;
 
-								if ( empty( $meta_value ) ) {
-									$n_key      = str_replace( 'shipping', 'billing', $key );
-									$meta_value = ( ! empty( $data[ $mapped_fields[ $n_key ] ] ) ) ? $data[ $mapped_fields[ $n_key ] ] : '';
-								}
+                        default:
+                            $meta_value = ( ! empty( $data[ $mapped_fields[ $key ] ] ) ) ? $data[ $mapped_fields[ $key ] ] : '';
+                            update_user_meta( $found_customer, $key, $meta_value );
+                    }
+                }
 
-								update_user_meta( $found_customer, $key, $meta_value );
-								break;
+                wcs_make_user_active( $found_customer );
 
-							default:
-								$meta_value = ( ! empty( $data[ $mapped_fields[ $key ] ] ) ) ? $data[ $mapped_fields[ $key ] ] : '';
-								update_user_meta( $found_customer, $key, $meta_value );
-						}
-					}
+                // send user registration email if admin as chosen to do so
+                if ( $email_customer && function_exists( 'wp_new_user_notification' ) ) {
 
-					wcs_make_user_active( $found_customer );
+                    $previous_option = get_option( 'woocommerce_registration_generate_password' );
 
-					// send user registration email if admin as chosen to do so
-					if ( $email_customer && function_exists( 'wp_new_user_notification' ) ) {
+                    // force the option value so that the password will appear in the email
+                    update_option( 'woocommerce_registration_generate_password', 'yes' );
 
-						$previous_option = get_option( 'woocommerce_registration_generate_password' );
+                    do_action( 'woocommerce_created_customer', $found_customer, array( 'user_pass' => $password ), true );
 
-						// force the option value so that the password will appear in the email
-						update_option( 'woocommerce_registration_generate_password', 'yes' );
-
-						do_action( 'woocommerce_created_customer', $found_customer, array( 'user_pass' => $password ), true );
-
-						update_option( 'woocommerce_registration_generate_password', $previous_option );
-					}
-				}
-			}
+                    update_option( 'woocommerce_registration_generate_password', $previous_option );
+                }
+            }
 		}
 	} else {
 		$user = get_user_by( 'id', $customer_id );

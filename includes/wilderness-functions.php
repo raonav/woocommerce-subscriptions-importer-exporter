@@ -18,29 +18,79 @@ function wilderness_add_missing_data($data){
     date_sub($endDate, date_interval_create_from_date_string($duration));
     $startDate = date_format($endDate, 'Y-m-d H:i:s');
     $data["start_date"] = $startDate;
-
-    // adding missing subscription details
-    // subperiod: 12 months
-    // subtype: FMC / 12 month renewal
-    // annual - 89.50 per year
-
-    $data["order_items"] = "product_id:7396";
-    //$data['billing_interval'] = 1;
-    //$data['billing_period'] = "";
     return $data;
 }
 
 // associate our product id for order items
 function wilderness_add_product($data){
-    $productName = str_replace(' ', '', strtolower($data["memberplan"]));
-    // we only care about digital member plan for now
-    if($productName == 'digitalmemberplan'){
-        // TODO: move this to somewhere editable and apparent
-        $productId = 7396;
-        //product_id:7392|name:Print & digital subscription|quantity:1|total:89.50|meta:subscription-options=Annually - $89.50 every year|tax:0.00
-        $orderItem = "product_id:" . productId . "|name:Digital subscription|quantity:1|total";
-    }
     return $data;
+}
+
+function wilderness_add_order($data, $custome){
+    $order = wc_create_order();
+    update_post_meta( $order->id, '_billing_first_name', $data['billing_first_name'] );
+    update_post_meta( $order->id, '_billing_last_name', $data['billing_last_name'] );
+    update_post_meta( $order->id, '_billing_email', $data['customer_email'] );
+    update_post_meta( $order->id, '_billing_state', '' );
+    update_post_meta( $order->id, '_billing_postcode', $data['billing_postcode'] );
+    
+    // we only care about digital member plan for now
+    $productId = wilderness_find_product($data['memberplan']);
+    if($productId){
+        $product = get_product($productId); 
+        $variation = wilderness_get_variations($data['subperiod'], $data['subtype']);
+        if($variation){
+            $variation_factory = new WC_Product_Variation($variation_id);
+            $variation_obj = $variation_factory->get_variation_attributes();
+            $quantity = 1;
+            $price = $variation_factory->get_price();
+            $price_params = array(
+                'variation' => $variation_obj,
+                'totals' => array(
+                    'subtotal' => $price*$quantity,
+                    'total' => $price*$quantity,
+                    'subtotal_tax' => 0,
+                    'tax' => 0
+                )
+            );
+            $order->add_product(wc_get_product($product_id), $quantity, $price_params);
+        } else {
+        }
+    }
+}
+
+// NOTE: Hardcoded hell
+function wilderness_get_variations($subperiod, $subtype){
+    // presume entry like "12 months", "1 year"
+
+    // 12 months - 12 month renewal
+    // 12 months - School
+    // 12 months - 12 month new
+    if($subperiod == "12 months" && $subtype == "12 month renewal"){
+        return 7399;
+    } elseif($subperiod == "12 months" && $subtype == "12 month new"){
+        return 7398;
+    } elseif($subperiod == "12 months"){
+        return 9070;
+    } elseif($subtype == "6 months"){
+        return 21451;
+    } else {
+        return false;
+    }
+}
+
+function strip_and_trim($item){
+    $item = str_replace(' ', '', strtolower($item));
+    return $item;
+}
+
+// find product id from member plan column
+function wilderness_find_product($memberplan){
+    $productName = str_replace(' ', '', strtolower($memberplan));
+    if($productName == 'digitalmemberplan'){
+        return 7396;
+    }
+    return false;
 }
 
 function wilderness_column_map($column){

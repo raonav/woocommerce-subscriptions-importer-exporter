@@ -251,94 +251,6 @@ class WCS_Import_Admin {
 	}
 
 	/**
-	 * Checks the mapping provides enough information to continue importing subscriptions
-	 *
-	 * @since 1.0
-	 */
-	public function save_mapping() {
-
-		check_admin_referer( 'import-upload', 'wcsi_wpnonce' );
-
-		$mapped_fields = array(
-			'payment_method_post_meta' => '',
-			'payment_method_user_meta' => '',
-			'customer_id'              => '',
-			'customer_email'           => 'customer_email',
-			'customer_username'        => '',
-			'customer_password'        => '',
-			'subscription_status'      => '',
-			'start_date'               => '',
-			'trial_end_date'           => '',
-			'next_payment_date'        => '',
-			'last_payment_date'        => '',
-			'end_date'                 => '',
-			'billing_first_name'       => '',
-			'billing_last_name'        => '',
-			'billing_address_1'        => '',
-			'billing_address_2'        => '',
-			'billing_city'             => '',
-			'billing_state'            => '',
-			'billing_postcode'         => '',
-			'billing_country'          => '',
-			'billing_email'            => '',
-			'billing_phone'            => '',
-			'billing_company'          => '',
-			'shipping_first_name'      => '',
-			'shipping_last_name'       => '',
-			'shipping_company'         => '',
-			'shipping_address_1'       => '',
-			'shipping_address_2'       => '',
-			'shipping_city'            => '',
-			'shipping_state'           => '',
-			'shipping_postcode'        => '',
-			'shipping_country'         => '',
-			'shipping_method'          => '',
-			'cart_discount'            => '',
-			'cart_discount_tax'        => '',
-			'order_shipping_tax'       => '',
-			'order_shipping'           => '',
-			'order_tax'                => '',
-			'order_total'              => '',
-			'order_items'              => '',
-			'order_notes'              => '',
-			'order_currency'           => '',
-			'customer_note'            => '',
-			'coupon_items'             => '',
-			'fee_items'                => '',
-			'tax_items'                => '',
-			'download_permissions'     => '',
-			'payment_method'           => '',
-			'payment_method_title'     => '',
-			'requires_manual_renewal'  => '',
-			'billing_period'           => '',
-			'billing_interval'         => '',
-		);
-
-        $mapping_rules = $mapped_fields;
-            //$_POST['mapto'];
-
-		foreach ( $mapped_fields as $key => $value ) {
-			if ( ! is_array( $value ) ) {
-				$m_key = array_search( $key, $mapping_rules );
-
-				if ( $m_key ) {
-					$mapped_fields[ $key ] = $m_key;
-				}
-			}
-		}
-
-		foreach ( $mapping_rules as $key => $value ) {
-			if ( ! empty( $value ) && is_array( $mapped_fields[ $value ] ) ) {
-				array_push( $mapped_fields[ $value ], $key );
-			}
-		}
-
-        die(var_dump($mapped_fields));
-
-		update_post_meta( $_GET['file_id'], '_mapped_rules', $mapped_fields );
-	}
-
-	/**
 	 * Displays header followed by the current pages content
 	 *
 	 * @since 1.0
@@ -364,7 +276,6 @@ class WCS_Import_Admin {
 					$this->upload_error = $file['error'];
 
 				} else {
-                    //$this->save_mapping();
 					$next_step_url_params['step']    = 3;
 					$next_step_url_params['file_id'] = $file['id'];
 

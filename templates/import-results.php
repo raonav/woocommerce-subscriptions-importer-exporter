@@ -13,9 +13,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 <p id="wcsi-timeout" style="display: none;">
 	<?php echo wp_kses( sprintf( __( 'Error: The importing process has timed out. Please check the CSV is correct and do a test run before importing by enabling the checkbox on the Importer Home screen. %1$s Start Over. %2$s', 'wcs-import-export' ), '<a href="' . $this->admin_url . '">', '</a>' ), array( 'a' => array( 'href' => true ) ) ); ?>
 </p>
-<p id="wcsi-time-completion">
-	<?php echo wp_kses( sprintf( __( 'Total Estimated Import Time Between: %1$s 0%2$s minutes. ( %3$s0%4$s Completed! )', 'wcs-import-export' ), '<span id="wcsi-estimated-time">', '</span>', '<span id="wcsi-completed-percent">', '</span>' ), array( 'span' => array( 'id' => true ) ) ); ?>
-</p>
 <br class="clear">
 <ul class="subsubsub">
 	<li class="wcsi-status-li" data-value="all"><a href="#"><?php esc_html_e( 'All', 'wcs-import-export' ); ?></a><span id="wcsi-all-count">(0)</span></li>
