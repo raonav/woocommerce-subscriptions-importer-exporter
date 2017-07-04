@@ -7,7 +7,7 @@
  *
  * @since 1.0
  */
-class WCS_Importer {
+class wilderness_Importer {
 
 	public static $results = array();
 
@@ -99,7 +99,7 @@ class WCS_Importer {
 							continue;
 						}
                         $csv_row[$key] = wilderness_process_field($header, $csv_row[$key]);
-						$data[ $header ] = ( isset( $csv_row[ $key ] ) ) ? trim( wcsi_format_data( $csv_row[ $key ], $file_encoding ) ) : '';
+						$data[ $header ] = ( isset( $csv_row[ $key ] ) ) ? trim( wildernessi_format_data( $csv_row[ $key ], $file_encoding ) ) : '';
 					}
 
 					self::$row_number++;
@@ -137,13 +137,13 @@ class WCS_Importer {
 			'row_number' => self::$row_number,
 		);
 
-		$user_id = wcsi_check_customer($data, self::$email_customer);
+		$user_id = wildernessi_check_customer($data, self::$email_customer);
 
 		if ( is_wp_error( $user_id ) ) {
 			$result['error'][] = $user_id->get_error_message();
 
 		} elseif ( empty( $user_id ) ) {
-			$result['error'][] = esc_html__( 'An error occurred with the customer information provided.', 'wcs-import-export' );
+			$result['error'][] = esc_html__( 'An error occurred with the customer information provided.', 'wilderness-import-export' );
 		}
 
 		if ( !empty( $result['error'] ) ) {
@@ -239,15 +239,15 @@ class WCS_Importer {
 			switch ( $date_type ) {
 				case 'end_date' :
 					if (!empty($dates_to_update['next_payment_date']) && strtotime($datetime) <= strtotime($dates_to_update['next_payment_date'])) {
-						$result['error'][] = sprintf( __( 'The %s date must occur after the next payment date.', 'wcs-import-export' ), $date_type );
+						$result['error'][] = sprintf( __( 'The %s date must occur after the next payment date.', 'wilderness-import-export' ), $date_type );
 					}
 				case 'next_payment_date' :
 					if ( ! empty( $dates_to_update['trial_end_date'] ) && strtotime( $datetime ) < strtotime( $dates_to_update['trial_end_date'] ) ) {
-						$result['error'][] = sprintf( __( 'The %s date must occur after the trial end date.', 'wcs-import-export' ), $date_type );
+						$result['error'][] = sprintf( __( 'The %s date must occur after the trial end date.', 'wilderness-import-export' ), $date_type );
 					}
 				case 'trial_end_date' :
 					if ( strtotime( $datetime ) <= strtotime( $dates_to_update['start'] ) ) {
-						$result['error'][] = sprintf( __( 'The %s must occur after the start date.', 'wcs-import-export' ), $date_type );
+						$result['error'][] = sprintf( __( 'The %s must occur after the start date.', 'wilderness-import-export' ), $date_type );
 					}
 			}
 		}
@@ -258,7 +258,7 @@ class WCS_Importer {
 				$dates_to_update['next_payment_date'] = $dates_to_update['end_date'];
 				unset( $dates_to_update['end_date'] );
 			} else {
-				$result['error'][] = __( 'Importing a pending cancelled subscription requires an end date in the future.', 'wcs-import-export' );
+				$result['error'][] = __( 'Importing a pending cancelled subscription requires an end date in the future.', 'wilderness-import-export' );
 			}
 		}
 
@@ -288,7 +288,7 @@ class WCS_Importer {
 
             $wpdb->query('START TRANSACTION');
 
-            $subscription = wcs_create_subscription(array(
+            $subscription = wilderness_create_subscription(array(
                 'customer_id'      => $user_id,
                 'start_date'       => $dates_to_update['start'],
                 'billing_interval' => $billing_interval, 
@@ -299,7 +299,7 @@ class WCS_Importer {
             ));
 
             if ( is_wp_error( $subscription ) ) {
-                throw new Exception(sprintf(esc_html__('Could not create subscription: %s', 'wcs-import-export'), $subscription->get_error_message()));
+                throw new Exception(sprintf(esc_html__('Could not create subscription: %s', 'wilderness-import-export'), $subscription->get_error_message()));
             }
 
             foreach ( $post_meta as $meta_data ) {
@@ -316,7 +316,7 @@ class WCS_Importer {
             remove_filter( 'woocommerce_can_subscription_be_updated_to_cancelled', '__return_true' );
             remove_filter( 'woocommerce_can_subscription_be_updated_to_pending-cancel', '__return_true' );
 
-            if ( !$set_manual && !$subscription->has_status(wcs_get_subscription_ended_statuses()) ) {
+            if ( !$set_manual && !$subscription->has_status(wilderness_get_subscription_ended_statuses()) ) {
                 $result['warning'] = array_merge($result['warning'], self::set_payment_meta($subscription, $data));
             }
 
@@ -398,13 +398,13 @@ class WCS_Importer {
 		$item_args['qty'] = isset( $data['quantity'] ) ? $data['quantity'] : 1;
 
 		if ( ! isset( $data['product_id'] ) ) {
-			throw new Exception( __( 'The product_id is missing from CSV.', 'wcs-import-export' ) );
+			throw new Exception( __( 'The product_id is missing from CSV.', 'wilderness-import-export' ) );
 		}
 
 		$_product = wc_get_product( $data['product_id'] );
 
 		if ( ! $_product ) {
-			throw new Exception( sprintf( __( 'No product or variation in your store matches the product ID #%s.', 'wcs-import-export' ), $data['product_id'] ) );
+			throw new Exception( sprintf( __( 'No product or variation in your store matches the product ID #%s.', 'wilderness-import-export' ), $data['product_id'] ) );
 		}
 
 		$line_item_name = ( ! empty( $data['name'] ) ) ? $data['name'] : $_product->get_title();
@@ -461,7 +461,7 @@ class WCS_Importer {
         }
 
         if ( ! $item_id ) {
-            throw new Exception( __( 'An unexpected error occurred when trying to add product "%s" to your subscription. The error was caught and no subscription for this row will be created. Please fix up the data from your CSV and try again.', 'wcs-import-export' ) );
+            throw new Exception( __( 'An unexpected error occurred when trying to add product "%s" to your subscription. The error was caught and no subscription for this row will be created. Please fix up the data from your CSV and try again.', 'wilderness-import-export' ) );
         }
 
 		return $product_string;

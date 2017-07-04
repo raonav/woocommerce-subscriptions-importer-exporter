@@ -132,12 +132,12 @@ function wilderness_column_map($column){
 }
 
 // ensure correct encoding
-function wcsi_format_data( $data, $file_encoding = 'UTF-8' ) {
+function wildernessi_format_data( $data, $file_encoding = 'UTF-8' ) {
 	return ( 'UTF-8' == $file_encoding ) ? $data : utf8_encode( $data );
 }
 
  // checks customer information and creates a new store customer when no customer id has been given
-function wcsi_check_customer( $data, $email_customer = false ) {
+function wildernessi_check_customer( $data, $email_customer = false ) {
 	$customer_email = ( ! empty( $data['customer_email'])) ? $data['customer_email'] : '';
 	$username       = ( ! empty( $data['customer_username'])) ? $data['customer_username'] : '';
 	$customer_id    = ( ! empty( $data['customer_id'])) ? $data['customer_id'] : '';
@@ -178,7 +178,7 @@ function wcsi_check_customer( $data, $email_customer = false ) {
             if ( ! is_wp_error( $found_customer ) ) {
 
                 // update user meta data
-                foreach ( WCS_Importer::$user_meta_fields as $key ) {
+                foreach ( wilderness_Importer::$user_meta_fields as $key ) {
                     switch ( $key ) {
                         case 'billing_email':
                             // user billing email if set in csv otherwise use the user's account email
@@ -224,7 +224,7 @@ function wcsi_check_customer( $data, $email_customer = false ) {
                     }
                 }
 
-                wcs_make_user_active( $found_customer );
+                wilderness_make_user_active( $found_customer );
 
                 // send user registration email if admin as chosen to do so
                 if ( $email_customer && function_exists( 'wp_new_user_notification' ) ) {
@@ -247,7 +247,7 @@ function wcsi_check_customer( $data, $email_customer = false ) {
 			$found_customer = absint( $customer_id );
 
 		} else {
-			$found_customer = new WP_Error( 'wcsi_invalid_customer', sprintf( __( 'User with ID (#%s) does not exist.', 'wcs-import-export' ), $customer_id ) );
+			$found_customer = new WP_Error( 'wildernessi_invalid_customer', sprintf( __( 'User with ID (#%s) does not exist.', 'wilderness-import-export' ), $customer_id ) );
 		}
 	}
 
