@@ -4,16 +4,15 @@
  *
  * @since 1.0
  */
-class WCS_Import_Admin {
+class Wilderness_Import_Admin {
 
 	public $import_results = array();
-
 	public $upload_error   = '';
 
 	public function __construct() {
 
-		$this->admin_url        = admin_url( 'admin.php?page=import_subscription' );
-		$this->rows_per_request = ( defined( 'WCS_IMPORT_ROWS_PER_REQUEST' ) ) ? WCS_IMPORT_ROWS_PER_REQUEST : 20;
+		$this->admin_url = admin_url( 'admin.php?page=import_subscription' );
+		$this->rows_per_request = ( defined( 'IMPORT_ROWS_PER_REQUEST' ) ) ? IMPORT_ROWS_PER_REQUEST : 20;
 
 		add_action( 'admin_init', array( &$this, 'post_request_handler' ) );
 
@@ -24,29 +23,19 @@ class WCS_Import_Admin {
 		add_action( 'wp_ajax_wcs_import_request', array( &$this, 'ajax_request_handler' ) );
 	}
 
-	/**
-	 * Add menu item under Woocommerce > Subscription CSV Importer
-	 *
-	 * @since 1.0
-	 */
 	public function add_sub_menu() {
-		add_submenu_page( 'woocommerce', __( 'Subscription Importer', 'wcs-import-export' ),  __( 'Subscription Importer', 'wcs-import-export' ), 'manage_woocommerce', 'import_subscription', array( &$this, 'admin_page' ) );
+		add_submenu_page( 'woocommerce', __( 'Subscription Importer', 'wilderness-import' ),  __( 'Subscription Importer', 'wilderness-import' ), 'manage_woocommerce', 'import_subscription', array( &$this, 'admin_page' ) );
 	}
 
-	/**
-	 * Load scripts
-	 *
-	 * @since 1.0
-	 */
 	public function enqueue_scripts() {
 
 		if ( isset( $_GET['page'] ) && 'import_subscription' == $_GET['page'] ) {
 
-			wp_enqueue_style( 'wcs-importer-admin', WCS_Importer_Exporter::plugin_url() . 'assets/css/wcs-importer.css' );
+			wp_enqueue_style( 'wilderness-importer', Wilderness_Importer::plugin_url() . 'assets/css/wcs-importer.css' );
 
 			if ( isset( $_GET['step'] ) && 3 == absint( $_GET['step'] )  ) {
 
-				wp_enqueue_script( 'wcs-importer-admin', WCS_Importer_Exporter::plugin_url() . 'assets/js/wcs-importer.js' );
+				wp_enqueue_script( 'wilderness-importer', Wilderness_Importer::plugin_url() . 'assets/js/wcs-importer.js' );
 
 				$file_id = absint( $_GET['file_id'] );
 				$file    = get_attached_file( $_GET['file_id'] );
@@ -108,8 +97,8 @@ class WCS_Import_Admin {
 				}
 
 				$script_data = array(
-					'success' 				=> esc_html__( 'success', 'wcs-import-export' ),
-					'failed' 				=> esc_html__( 'failed', 'wcs-import-export' ),
+					'success' 				=> esc_html__( 'success', 'wilderness-import' ),
+					'failed' 				=> esc_html__( 'failed', 'wilderness-import' ),
 					'error_string'			=> esc_html( sprintf( __( 'Row #%1$s from CSV %2$sfailed to import%3$s with error/s: %4$s', 'wcs-import-export' ), '{row_number}', '<strong>', '</strong>', '{error_messages}' ) ),
 					'finished_importing' 	=> esc_html__( 'Finished Importing', 'wcs-import-export' ),
 					'edit_order' 			=> esc_html__( 'Edit Order', 'wcs-import-export' ),
@@ -131,7 +120,7 @@ class WCS_Import_Admin {
 					'import_wpnonce'   => wp_create_nonce( 'process-import' ),
 				);
 
-				wp_localize_script( 'wcs-importer-admin', 'wcsi_data', $script_data );
+				wp_localize_script( 'wilderness-importer', 'wcsi_data', $script_data );
 			}
 		}
 	}
@@ -144,13 +133,13 @@ class WCS_Import_Admin {
 	public function admin_page() {
 
 		echo '<div class="wrap">';
-		echo '<h2>' . esc_html__( 'Subscription CSV Importer', 'wcs-import-export' ) . '</h2>';
+		echo '<h2>' . esc_html__( 'Wilderness CSV Importer', 'wilderness-import' ) . '</h2>';
 
 		if ( isset( $_GET['cancelled'] ) ) : ?>
 			<div id="message" class="updated woocommerce-message wc-connect">
 			<?php if ( isset( $_GET['cancelled'] ) ) : ?>
 				<div id="message" class="updated error">
-					<p><?php esc_html_e( 'Import cancelled.', 'wcs-import-export' ); ?></p>
+					<p><?php esc_html_e( 'Import cancelled.', 'wilderness-import' ); ?></p>
 				</div>
 			<?php endif; ?>
 		    </div>
@@ -192,13 +181,13 @@ class WCS_Import_Admin {
 
 		if ( ! empty( $this->upload_error ) ) : ?>
 			<div id="message" class="error">
-				<p><?php printf( esc_html__( 'Error uploading file: %s', 'wcs-import-export' ), wp_kses_post( $this->upload_error ) ); ?></p>
+				<p><?php printf( esc_html__( 'Error uploading file: %s', 'wilderness-import' ), wp_kses_post( $this->upload_error ) ); ?></p>
 			</div>
 		<?php endif; ?>
 
-		<h3><?php esc_html_e( 'Step 1: Upload CSV File', 'wcs-import-export' ); ?></h3>
+		<h3><?php esc_html_e( 'Step 1: Upload CSV File', 'wilderness-import' ); ?></h3>
 		<?php if ( ! empty( $upload_dir['error'] ) ) : ?>
-			<div class="error"><p><?php esc_html_e( 'Before you can upload your import file, you will need to fix the following error:', 'wcs-import-export' ); ?></p>
+			<div class="error"><p><?php esc_html_e( 'Before you can upload your import file, you will need to fix the following error:', 'wilderness-import' ); ?></p>
 			<p><strong><?php echo esc_html( $upload_dir['error'] ); ?></strong></p></div>
 		<?php else : ?>
 			<form enctype="multipart/form-data" id="import-upload-form" method="post" action="<?php echo esc_attr( $this->admin_url ); ?>">
@@ -207,47 +196,41 @@ class WCS_Import_Admin {
 					<tbody>
 						<tr>
 							<th>
-								<label for="upload"><?php esc_html_e( 'Choose a file:', 'wcs-import-export' ); ?></label>
+								<label for="upload"><?php esc_html_e( 'Choose a file:', 'wilderness-import' ); ?></label>
 							</th>
 							<td>
 								<input type="file" id="upload" name="import" size="25" />
 								<input type="hidden" name="action" value="upload_file" />
-								<small><?php printf( esc_html__( 'Maximum size: %s', 'wcs-import-export' ), wp_kses_post( size_format( apply_filters( 'import_upload_size_limit', wp_max_upload_size() ) ) ) ); ?></small>
+								<small><?php printf( esc_html__( 'Maximum size: %s', 'wilderness-import' ), wp_kses_post( size_format( apply_filters( 'import_upload_size_limit', wp_max_upload_size() ) ) ) ); ?></small>
 							</td>
 						</tr>
 						<tr>
-							<th><?php esc_html_e( 'Email Passwords:', 'wcs-import-export' ); ?></th>
+							<th><?php esc_html_e( 'Email Passwords:', 'wilderness-import' ); ?></th>
 							<td>
 								<input type="checkbox" name="email_customer" value="yes" <?php checked( $email_customer, 'yes' ); ?> />
-								<em><?php esc_html_e( 'If importing new users, you can email customers their account details.', 'wcs-import-export' ); ?></em>
+								<em><?php esc_html_e( 'If importing new users, you can email customers their account details.', 'wilderness-import' ); ?></em>
 							</td>
 						</tr>
 						<?php $is_memberships_active = get_option( 'wc_memberships_is_active', false ); ?>
 						<?php if ( ! empty( $is_memberships_active ) && class_exists( 'WC_Memberships' ) ) : ?>
 							<tr>
-								<th><?php esc_html_e( 'Add Memberships:', 'wcs-import-export' ); ?></th>
+								<th><?php esc_html_e( 'EnableMemberships Import:', 'wilderness-import' ); ?></th>
 								<td>
 									<input type="checkbox" name="add_memberships" value="yes" <?php checked( $add_memberships, 'yes' ); ?> />
-									<em><?php printf( esc_html__( 'Automatically add the membership to the new subscription if it contains a product that is part of a membership plan.', 'wcs-import-export' ) ); ?></em>
 								</td>
 							</tr>
 						<?php endif; ?>
 					</tbody>
 				</table>
 				<p class="submit">
-					<input type="submit" class="button" value="<?php esc_attr_e( 'Upload file and import', 'wcs-import-export' ); ?>" />
+					<input type="submit" class="button" value="<?php esc_attr_e( 'Upload file and import', 'wilderness-import' ); ?>" />
 				</p>
 			</form>
 		<?php endif;
 	}
 
-	/**
-	 * Show test page if $_POST['test-mode'] is set and display a list of critical errors and warnings
-	 *
-	 * @since 1.0
-	 */
 	private function import_page() {
-		include( WCS_Importer_Exporter::plugin_dir() . 'templates/import-results.php' );
+		include( Wilderness_Importer::plugin_dir() . 'templates/import-results.php' );
 	}
 
 	/**
@@ -304,7 +287,7 @@ class WCS_Import_Admin {
 		@ini_set( 'memory_limit', apply_filters( 'admin_memory_limit', WP_MAX_MEMORY_LIMIT ) );
 
 		if ( isset( $_POST['file_id'] ) && isset( $_POST['row_num'] ) ) {
-			$results = WCS_Importer::import_data( array(
+			$results = Wilderness_Importer::import_data( array(
 					'file_path'       => get_attached_file( absint( $_POST['file_id'] ) ),
 					'mapped_fields'   => get_post_meta( absint( $_POST['file_id'] ), '_mapped_rules', true ),
 					'file_start'      => ( isset( $_POST['start'] ) ) ? absint( $_POST['start'] ) : 0,

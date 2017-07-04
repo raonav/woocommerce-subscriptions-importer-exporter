@@ -1,9 +1,4 @@
 <?php
-/**
- * Template file for displaying import results.
- *
- * @since 1.0
- */
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }

@@ -464,33 +464,7 @@ class WCS_Importer {
             throw new Exception( __( 'An unexpected error occurred when trying to add product "%s" to your subscription. The error was caught and no subscription for this row will be created. Please fix up the data from your CSV and try again.', 'wcs-import-export' ) );
         }
 
-        if ( ! empty( self::$row[ self::$fields['download_permissions'] ] ) && ( 'true' == self::$row[ self::$fields['download_permissions'] ] || 1 == (int) self::$row[ self::$fields['download_permissions'] ] ) ) {
-            self::save_download_permissions( $subscription, $_product, $item_args['qty'] );
-        }
-
 		return $product_string;
-	}
-
-	public static function add_shipping_lines( $subscription, $data, $chosen_tax_rate_id ) {
-
-        $default_total = 0;
-        $shipping_line = array();
-
-        // NOTE: hardcoded
-        $shipping_method = isset( $shipping_line['method_id'] ) ? $shipping_line['method_id'] : '13394';
-        $shipping_title  = isset( $shipping_line['method_title'] ) ? $shipping_line['method_title'] : $shipping_method;
-
-        $rate = new WC_Shipping_Rate( $shipping_method, $shipping_title, $default_total, array(), $shipping_method );
-
-        $shipping_id = $subscription->add_shipping($rate);
-        if ( ! $shipping_id ) {
-            throw new Exception( __( 'An error occurred when trying to add the shipping item to the subscription, a subscription not been created for this row.', 'wcs-import-export' ) );
-        }
-
-        update_post_meta( $subscription->id, '_shipping_method', $shipping_method );
-        update_post_meta( $subscription->id, '_shipping_method_title', $shipping_title );
-
-		return $shipping_method;
 	}
 
 }
