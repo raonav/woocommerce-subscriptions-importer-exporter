@@ -22,11 +22,6 @@ function wilderness_add_missing_data($data){
     return $data;
 }
 
-// associate our product id for order items
-function wilderness_add_product($data){
-    return $data;
-}
-
 function wilderness_add_order($data, $custome){
     $order = wc_create_order();
     update_post_meta( $order->id, '_billing_first_name', $data['billing_first_name'] );
@@ -57,26 +52,6 @@ function wilderness_add_order($data, $custome){
             $order->add_product(wc_get_product($product_id), $quantity, $price_params);
         } else {
         }
-    }
-}
-
-// NOTE: Hardcoded hell
-function wilderness_get_variations($subperiod, $subtype){
-    // presume entry like "12 months", "1 year"
-
-    // 12 months - 12 month renewal
-    // 12 months - School
-    // 12 months - 12 month new
-    if($subperiod == "12 months" && $subtype == "12 month renewal"){
-        return 7399;
-    } elseif($subperiod == "12 months" && $subtype == "12 month new"){
-        return 7398;
-    } elseif($subperiod == "12 months"){
-        return 9070;
-    } elseif($subtype == "6 months"){
-        return 21451;
-    } else {
-        return false;
     }
 }
 

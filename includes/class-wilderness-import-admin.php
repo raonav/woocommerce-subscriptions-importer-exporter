@@ -15,11 +15,8 @@ class Wilderness_Import_Admin {
 		$this->rows_per_request = ( defined( 'IMPORT_ROWS_PER_REQUEST' ) ) ? IMPORT_ROWS_PER_REQUEST : 20;
 
 		add_action( 'admin_init', array( &$this, 'post_request_handler' ) );
-
 		add_action( 'admin_menu', array( &$this, 'add_sub_menu' ), 10 );
-
 		add_action( 'admin_enqueue_scripts', array( &$this, 'enqueue_scripts' ) );
-
 		add_action( 'wp_ajax_wilderness_import_request', array( &$this, 'ajax_request_handler' ) );
 	}
 
@@ -114,12 +111,11 @@ class Wilderness_Import_Admin {
 					'start_row_num'    => $row_start,
 					'ajax_url'         => admin_url( 'admin-ajax.php' ),
 					'rows_per_request' => $this->rows_per_request,
-					'add_memberships'  => ( 'yes' == $_GET['add_memberships'] ) ? 'true' : 'false',
 					'total'            => $total,
 					'import_wpnonce'   => wp_create_nonce( 'process-import' ),
 				);
 
-				wp_localize_script( 'wilderness-importer', 'wildernessi_data', $script_data );
+				wp_localize_script( 'wilderness-importer', 'wcsi_data', $script_data );
 			}
 		}
 	}
@@ -154,14 +150,14 @@ class Wilderness_Import_Admin {
 			check_admin_referer( 'import-upload', 'wildernessi_wpnonce' );
 		}
 
-		if ( ! empty( $this->upload_error ) ) : ?>
+		if (!empty($this->upload_error)) : ?>
 			<div id="message" class="error">
 				<p><?php printf( esc_html__( 'Error uploading file: %s', 'wilderness-import' ), wp_kses_post( $this->upload_error ) ); ?></p>
 			</div>
 		<?php endif; ?>
 
-		<h3><?php esc_html_e( 'Step 1: Upload CSV File', 'wilderness-import' ); ?></h3>
-		<?php if ( ! empty( $upload_dir['error'] ) ) : ?>
+		<h3>Upload CSV File</h3>
+		<?php if (!empty($upload_dir['error'])) : ?>
 			<div class="error"><p><?php esc_html_e( 'Before you can upload your import file, you will need to fix the following error:', 'wilderness-import' ); ?></p>
 			<p><strong><?php echo esc_html( $upload_dir['error'] ); ?></strong></p></div>
 		<?php else : ?>
@@ -192,29 +188,24 @@ class Wilderness_Import_Admin {
 	}
 
 	public function post_request_handler() {
-
-		if ( isset( $_GET['page'] ) && 'import_subscription' == $_GET['page'] && isset( $_POST['action'] ) ) {
+        
+        if ( isset( $_GET['page'] ) && 'import_subscription' == $_GET['page'] && isset( $_POST['action'] ) ) {
 
 			check_admin_referer( 'import-upload', 'wildernessi_wpnonce' );
 
-			$next_step_url_params = array(
-				'file_id'         => isset( $_GET['file_id'] ) ? $_GET['file_id'] : 0,
-				'add_memberships' => isset( $_REQUEST['add_memberships'] ) ? $_REQUEST['add_memberships'] : 'no',
-			);
+			$next_step_url_params = array('file_id' => isset( $_GET['file_id'] ) ? $_GET['file_id'] : 0);
 
-			if ( 'upload_file' == $_POST['action'] ) {
+			if ('upload_file' == $_POST['action']) {
 
 				$file = wp_import_handle_upload();
 
-				if ( isset( $file['error'] ) ) {
-
+				if (isset($file['error'])) {
 					$this->upload_error = $file['error'];
-
 				} else {
-					$next_step_url_params['step']    = 3;
+					$next_step_url_params['step'] = 3;
 					$next_step_url_params['file_id'] = $file['id'];
 
-					wp_safe_redirect( add_query_arg( $next_step_url_params, $this->admin_url ) );
+					wp_safe_redirect(add_query_arg($next_step_url_params, $this->admin_url));
 					exit;
 				}
 			}
@@ -223,7 +214,8 @@ class Wilderness_Import_Admin {
 
     // submit form data as ajax request and receive json response
 	public function ajax_request_handler() {
-		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+        
+        if ( ! current_user_can( 'manage_woocommerce' ) ) {
 			wp_die( "Cheatin' huh?" );
 		}
 
@@ -241,11 +233,10 @@ class Wilderness_Import_Admin {
 					'file_start'      => ( isset( $_POST['start'] ) ) ? absint( $_POST['start'] ) : 0,
 					'file_end'        => ( isset( $_POST['end'] ) ) ? absint( $_POST['end'] ) : 0,
 					'starting_row'    => absint( $_POST['row_num'] ),
-					'add_memberships' => isset( $_POST['add_memberships'] ) ? $_POST['add_memberships'] : false,
 				)
 			);
-
-			header( 'Content-Type: application/json; charset=utf-8' );
+            
+            header( 'Content-Type: application/json; charset=utf-8' );
 			echo json_encode( $results );
 		}
 

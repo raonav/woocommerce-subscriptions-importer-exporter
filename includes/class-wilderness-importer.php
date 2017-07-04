@@ -60,6 +60,7 @@ class wilderness_Importer {
 	);
 
 	public static function import_data( $data ) {
+
 		$file_path = addslashes( $data['file_path'] );
 
 		self::$row_number      = $data['starting_row'];

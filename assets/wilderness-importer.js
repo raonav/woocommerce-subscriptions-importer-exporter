@@ -1,4 +1,4 @@
-/* global data, jQuery, document */
+/* global wcsi_data, jQuery, document */
 jQuery(document).ready(function ($) {
 	var counter = 0,
 		import_count = 0,
@@ -26,21 +26,21 @@ jQuery(document).ready(function ($) {
 		$completed_percent = $('#wcsi-completed-percent'),
 		ajax_import = function (start_pos, end_pos, row_start) {
 			var data = {
-				action:				'wcs_import_request',
-				file_id:			data.file_id,
+				action:				'wilderness_import_request',
+				file_id:			wcsi_data.file_id,
 				start:				start_pos,
 				end:				end_pos,
 				row_num:			row_start,
-				test_mode:			data.test_mode,
-				email_customer:		data.email_customer,
-				add_memberships:	data.add_memberships,
-				wcsie_wpnonce:		data.import_wpnonce
+				test_mode:			wcsi_data.test_mode,
+				email_customer:		wcsi_data.email_customer,
+				add_memberships:	wcsi_data.add_memberships,
+				wcsie_wpnonce:		wcsi_data.import_wpnonce
 			};
 
 			$.ajax({
-				url: data.ajax_url,
+				url: wcsi_data.ajax_url,
 				type: 'POST',
-				data: data,
+				wcsi_data: wcsi_data,
 				timeout: 360000,
 				success: function (results) {
 					var i,
@@ -69,7 +69,7 @@ jQuery(document).ready(function ($) {
                             warnings = results[i].warning;
                             append_text += '<tr class="' + row_classes + '">';
 
-                            table_data += '<td class="row ' + ((warnings.length > 0) ? 'warning' : 'success') + '">' + data.success + '</td>';
+                            table_data += '<td class="row ' + ((warnings.length > 0) ? 'warning' : 'success') + '">' + wcsi_data.success + '</td>';
                             table_data += '<td class="row">' + (results[i].subscription !== null  ? results[i].subscription : '-') + '</td>';
                             table_data += '<td class="row">' + results[i].items + '</td>';
                             table_data += '<td class="row">' + results[i].username + '</td>';
@@ -81,7 +81,7 @@ jQuery(document).ready(function ($) {
 
                             if (warnings.length > 0) {
                                 warning_alternate = (warning_count % 2) ? '' : 'alternate';
-                                warning_string = '<td class="warning" colspan="6">' + ((warnings.length > 1) ? data.warnings : data.warning) + ':';
+                                warning_string = '<td class="warning" colspan="6">' + ((warnings.length > 1) ? wcsi_data.warnings : wcsi_data.warning) + ':';
 
                                 for (x = 0; x < warnings.length; x += 1) {
                                     warning_string += '<br>' + (x + 1) + '. ' + warnings[x];
@@ -94,12 +94,12 @@ jQuery(document).ready(function ($) {
                                 warning_count += 1;
                             }
                         } else {
-                            table_data += '<td class="row error-import">' + data.failed + '</td>';
+                            table_data += '<td class="row error-import">' + wcsi_data.failed + '</td>';
                             for (x = 0; x < results[i].error.length; x += 1) {
                                 error_string += '<br>' + (x + 1) + '. ' + results[i].error[x];
                             }
 
-                            table_data += '<td colspan="5">' + data.error_string + '</td>';
+                            table_data += '<td colspan="5">' + wcsi_data.error_string + '</td>';
                             table_data = table_data.replace('{row_number}', results[i].row_number);
                             table_data = table_data.replace('{error_messages}', error_string);
 
@@ -125,15 +125,15 @@ jQuery(document).ready(function ($) {
                     $all_count.html('(' + import_count + ')');
 
 					counter += 2;
-					if ((counter / 2) >= data.total) {
+					if ((counter / 2) >= wcsi_data.total) {
                         $importer_loading.addClass('finished').removeClass('importer-loading');
-                        $importer_loading.html('<td colspan="6" class="row">' + data.finished_importing + '</td>');
+                        $importer_loading.html('<td colspan="6" class="row">' + wcsi_data.finished_importing + '</td>');
 						$completed_message.show();
 						$completed_percent.html('100%');
 					} else {
 						// calculate percentage completed
-						$completed_percent.html(((((counter / 2) * data.rows_per_request) / (data.total * data.rows_per_request)) * 100).toFixed(0) + '%');
-						ajax_import(data.file_positions[counter], data.file_positions[counter + 1], data.start_row_num[counter / 2]);
+						$completed_percent.html(((((counter / 2) * wcsi_data.rows_per_request) / (wcsi_data.total * wcsi_data.rows_per_request)) * 100).toFixed(0) + '%');
+						ajax_import(wcsi_data.file_positions[counter], wcsi_data.file_positions[counter + 1], wcsi_data.start_row_num[counter / 2]);
 					}
 				},
 				error: function (xmlhttprequest, textstatus) {
@@ -147,13 +147,13 @@ jQuery(document).ready(function ($) {
 				}
 
 			});
-		}
+		};
 
-	ajax_import(data.file_positions[counter], data.file_positions[counter + 1], data.start_row_num[counter / 2]);
+	ajax_import(wcsi_data.file_positions[counter], wcsi_data.file_positions[counter + 1], wcsi_data.start_row_num[counter / 2]);
 
 	$subsubsub.on('click', 'a', function (e) {
 		e.preventDefault();
-		var id = $(this).parent('li').attr('data-value');
+		var id = $(this).parent('li').attr('wcsi_data-value');
 
 		$progress.find('tbody').hide();
 		$progress.find('#wcsi-' + id + '-tbody').show();
