@@ -21,7 +21,7 @@ class Wilderness_Import_Admin {
 	}
 
 	public function add_sub_menu() {
-		add_submenu_page( 'woocommerce', __( 'Subscription Importer', 'wilderness-import' ),  __( 'Subscription Importer', 'wilderness-import' ), 'manage_woocommerce', 'import_subscription', array( &$this, 'admin_page' ) );
+		add_submenu_page( 'woocommerce','Subscription Importer','Subscription Importer','manage_woocommerce','import_subscription', array( &$this, 'admin_page' ));
 	}
 
 	public function enqueue_scripts() {
@@ -65,7 +65,7 @@ class Wilderness_Import_Admin {
 								continue;
 							}
 
-							$s_heading         = strtolower( $heading );
+							$s_heading = strtolower( $heading );
 							$row[ $s_heading ] = ( isset( $postmeta[ $key ] ) ) ? wildernessi_format_data( $postmeta[ $key ], $enc ) : '';
 						}
 
@@ -96,14 +96,14 @@ class Wilderness_Import_Admin {
 				$script_data = array(
 					'success' 				=> 'success',
 					'failed' 				=> 'failed',
-					'error_string'			=> esc_html( sprintf( __( 'Row #%1$s from CSV %2$sfailed to import%3$s with error/s: %4$s', 'wilderness-import-export' ), '{row_number}', '<strong>', '</strong>', '{error_messages}' ) ),
-					'finished_importing' 	=> esc_html__( 'Finished Importing', 'wilderness-import-export' ),
-					'edit_order' 			=> esc_html__( 'Edit Order', 'wilderness-import-export' ),
-					'warning'				=> esc_html__( 'Warning', 'wilderness-import-export' ),
-					'warnings'				=> esc_html__( 'Warnings', 'wilderness-import-export' ),
-					'error'					=> esc_html__( 'Error', 'wilderness-import-export' ),
-					'errors'				=> esc_html__( 'Errors', 'wilderness-import-export' ),
-					'located_at'			=> esc_html__( 'Located at rows', 'wilderness-import-export' ),
+					'error_string'			=> sprintf('Row #%1$s from CSV %2$sfailed to import%3$s with error/s: %4$s', '{row_number}', '<strong>', '</strong>', '{error_messages}'),
+					'finished_importing' 	=> 'Finished Importing',
+					'edit_order' 			=> 'Edit Order',
+					'warning'				=> 'Warning',
+					'warnings'				=> 'Warnings',
+					'error'					=> 'Error',
+					'errors'				=> 'Errors',
+					'located_at'			=> 'Located at rows',
 
 					// Data for procesing the file
 					'file_id'          => absint( $_GET['file_id'] ),
@@ -147,7 +147,7 @@ class Wilderness_Import_Admin {
 
 		if (!empty($this->upload_error)) : ?>
 			<div id="message" class="error">
-				<p><?php printf( esc_html__( 'Error uploading file: %s', 'wilderness-import' ), wp_kses_post( $this->upload_error ) ); ?></p>
+				<p><?php printf('Error uploading file: %s', wp_kses_post( $this->upload_error ) ); ?></p>
 			</div>
 		<?php endif; ?>
 
@@ -226,7 +226,6 @@ class Wilderness_Import_Admin {
             header( 'Content-Type: application/json; charset=utf-8' );
 			echo json_encode( $results );
 		}
-
 		exit;
 	}
 }

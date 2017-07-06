@@ -35,7 +35,6 @@ class Wilderness_Importer {
 		'billing_country',
 		'billing_email',
 		'billing_phone',
-
 		'shipping_first_name', // Shipping Address Info
 		'shipping_last_name',
 		'shipping_company',
@@ -233,10 +232,9 @@ class Wilderness_Importer {
             // before we create the subscription we want to get some further product related details
             $subperiod = strip_and_trim($data['subperiod']); //this is the equivalent of billing_period
             $subtype = strip_and_trim($data['subtype']); //this is the equivalent of billing_interval 
-            $productId = wilderness_find_product($data["memberplan"]);
-            $variationId = wilderness_find_variation($productId, $data['subperiod'], $data['subtype']);
             $billing_period = wilderness_find_period($subperiod);
             $billing_interval = wilderness_find_interval($subtype);
+
 
             $wpdb->query('START TRANSACTION');
 
@@ -279,6 +277,7 @@ class Wilderness_Importer {
                 $chosen_tax_rate_id = self::add_taxes( $subscription, $data );
             }
 
+            $productId = wilderness_find_product($data["memberplan"]);
             $result['items'] = self::add_product( $subscription, array( 'product_id' => $productId ), $chosen_tax_rate_id );
 
             //self::maybe_add_memberships( $user_id, $subscription->id, $product_id );
@@ -341,12 +340,11 @@ class Wilderness_Importer {
 
 	public static function add_product( $subscription, $data, $chosen_tax_rate_id ) {
 
+        $variationId = wilderness_find_variation($data['product_id'], $data['subperiod'], $data['subtype']);
+        $orderID = wilderness_add_order($data, $variationId);
+
 		$item_args = array();
 		$item_args['qty'] = isset( $data['quantity'] ) ? $data['quantity'] : 1;
-
-		if ( ! isset( $data['product_id'] ) ) {
-			throw new Exception('The product_id is missing from CSV.');
-		}
         
         // get the product object from a product id
 		$_product = wc_get_product( $data['product_id'] );
@@ -383,6 +381,7 @@ class Wilderness_Importer {
             $variation_id = $customer_data['sub_variation'];
 
 			$product_string .= ' [#' . $data['product_id'] . ']';
+            die(var_dump($product_string));
 		}
 
 		if ( ! empty( $item_args['totals']['tax'] ) && ! empty( $chosen_tax_rate_id ) ) {

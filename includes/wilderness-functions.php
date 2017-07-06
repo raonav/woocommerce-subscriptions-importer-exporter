@@ -29,7 +29,7 @@ function wilderness_add_missing_date($data){
     return $data;
 }
 
-function wilderness_add_order($data, $customer){
+function wilderness_add_order($data, $variationId){
     $order = wc_create_order();
     update_post_meta( $order->id, '_billing_first_name', $data['billing_first_name'] );
     update_post_meta( $order->id, '_billing_last_name', $data['billing_last_name'] );
@@ -38,8 +38,7 @@ function wilderness_add_order($data, $customer){
     update_post_meta( $order->id, '_billing_postcode', $data['billing_postcode'] );
     
     // we only care about digital member plan for now
-    $product = get_product($productId); 
-    $variation = wilderness_get_variations($data['subperiod'], $data['subtype']);
+    $variation = wilderness_find_variation($data['product_id'], $data['subperiod'], $data['subtype']);
     if($variation){
         $variation_factory = new WC_Product_Variation($variation_id);
         $variation_obj = $variation_factory->get_variation_attributes();
@@ -55,7 +54,6 @@ function wilderness_add_order($data, $customer){
             )
         );
         $order->add_product(wc_get_product($product_id), $quantity, $price_params);
-    } else {
     }
 }
 
@@ -78,9 +76,9 @@ function wilderness_find_variation($productID, $subperiod, $subtype){
     if($productID == 7396){
         if(strip_and_trim($subtype) == "12monthrenewal"){
             $variationID = 7399;
-        } elseif(strip_and_trip($subtype) == '3monthrenewal'){
+        } elseif(strip_and_trim($subtype) == '3monthrenewal'){
             $variationID = 7398;
-        } elseif(strip_and_trip($subtype) == '2monthrenewal'){
+        } elseif(strip_and_trim($subtype) == '2monthrenewal'){
             $variationID = 9070;
         } elseif(strip_and_trim($subtype) == "12monthnew"){
             $variationID = 21451;
@@ -179,8 +177,8 @@ function wilderness_check_customer( $data, $email_customer = false ) {
 	$found_customer = false;
 
     if ( is_email( $customer_email ) && false !== email_exists( $customer_email ) ) {
-        $found_customer = email_exists( $customer_email );
-    } elseif ( is_email( $customer_email ) ) {
+        $found_customer = email_exists($customer_email);
+    } elseif (is_email($customer_email)) {
 
         $maybe_username = explode( '@', $customer_email );
         $maybe_username = sanitize_user($maybe_username[0]);
@@ -192,7 +190,7 @@ function wilderness_check_customer( $data, $email_customer = false ) {
         if ( ! is_wp_error( $found_customer ) ) {
 
             // update user meta data
-            foreach ( wilderness_Importer::$user_meta_fields as $key ) {
+            foreach ( Wilderness_Importer::$user_meta_fields as $key ) {
                 switch ($key) {
                     case 'billing_email':
                         // user billing email if set in csv otherwise use the user's account email
@@ -238,7 +236,7 @@ function wilderness_check_customer( $data, $email_customer = false ) {
                 }
             }
 
-            wcs_make_user_active( $found_customer );
+            wcs_make_user_active($found_customer);
 
             // send user registration email if admin as chosen to do so
             //$previous_option = get_option( 'woocommerce_registration_generate_password' );
