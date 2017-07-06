@@ -1,13 +1,5 @@
 <?php
-/**
- * The main importer class.
- *
- * This class reads a number of lines from the CSV file and imports the subscriptions based on the data
- * in those rows. All errors and unexpected PHP shutdowns will be logged to assist in debugging.
- *
- * @since 1.0
- */
-class wilderness_Importer {
+class Wilderness_Importer {
 
 	public static $results = array();
 
@@ -16,10 +8,6 @@ class wilderness_Importer {
 
 	public static $membership_plans = null;
 	public static $all_virtual      = true;
-
-	/* Front-end import settings chosen */
-	public static $email_customer;
-	public static $add_memberships;
 
 	/* Specifically for the shutdown handler */
 	public static $fields = array();
@@ -59,16 +47,12 @@ class wilderness_Importer {
 		'shipping_country',
 	);
 
-	public static function import_data( $data ) {
+	public static function import_data($data) {
 
 		$file_path = addslashes( $data['file_path'] );
-
-		self::$row_number      = $data['starting_row'];
-		self::$email_customer  = ( 'true' == $data['email_customer'] ) ? true : false;
-		self::$add_memberships = ( 'true' == $data['add_memberships'] ) ? true : false;
-		self::$fields          = $data['mapped_fields'];
-
-		self::import_start( $file_path, $data['file_start'], $data['file_end'] );
+		self::$row_number = $data['starting_row'];
+        
+        self::import_start( $file_path, $data['file_start'], $data['file_end'] );
 
 		return self::$results;
 	}
@@ -104,7 +88,7 @@ class wilderness_Importer {
 					}
 
 					self::$row_number++;
-                    $data = wilderness_add_missing_data($data);
+                    $data = wilderness_add_missing_date($data);
 					self::import_subscription($data);
                     
                     if (ftell($file_handle) >= $end_position) {
@@ -116,14 +100,6 @@ class wilderness_Importer {
 		}
 	}
 
-	/**
-	 * Create a new subscription and attach all relevant meta given the data in the CSV.
-	 * This function will also create a user if enough valid information is given and there's no
-	 * user existing
-	 *
-	 * @since 1.0
-	 * @param array $data
-	 */
 	public static function import_subscription($data) {
 		global $wpdb;
         global $woocommerce;
@@ -138,16 +114,17 @@ class wilderness_Importer {
 			'row_number' => self::$row_number,
 		);
 
-		$user_id = wildernessi_check_customer($data, self::$email_customer);
+		$user_id = wilderness_check_customer($data);
+        $result['username'] = sprintf('<a href="%s">%s</a>', get_edit_user_link( $user_id ), self::get_user_display_name( $user_id ));
 
 		if ( is_wp_error( $user_id ) ) {
 			$result['error'][] = $user_id->get_error_message();
 
 		} elseif ( empty( $user_id ) ) {
-			$result['error'][] = esc_html__( 'An error occurred with the customer information provided.', 'wilderness-import-export' );
+			$result['error'][] = 'An error occurred with the customer information provided.';
 		}
 
-		if ( !empty( $result['error'] ) ) {
+		if (!empty( $result['error'])){
 			$result['status'] = 'failed';
 
 			array_push( self::$results, $result );
@@ -168,19 +145,7 @@ class wilderness_Importer {
 					break;
 
 				case 'payment_method':
-					$payment_method = ( ! empty( $data[ self::$fields[ $column ] ] ) ) ? strtolower( $data[ self::$fields[ $column ] ] ) : '';
-					$title = ( ! empty( $data[ self::$fields['payment_method_title'] ] ) ) ? $data[ self::$fields['payment_method_title'] ] : $payment_method;
-
-					if ( ! empty( $payment_method ) && 'manual' != $payment_method ) {
-						$post_meta[] = array( 'key' => '_' . $column, 'value' => $payment_method );
-						$post_meta[] = array( 'key' => '_payment_method_title', 'value' => $title );
-					} else {
-						$set_manual = true;
-					}
-
-					if (!empty( $data[self::$fields['requires_manual_renewal']]) && 'true' == $data[ self::$fields['requires_manual_renewal']]){
-						$requires_manual_renewal = true;
-					}
+					$requires_manual_renewal = true;
 					break;
 
 				case 'shipping_address_1':
@@ -239,68 +204,54 @@ class wilderness_Importer {
 
 			switch ( $date_type ) {
 				case 'end_date' :
-					if (!empty($dates_to_update['next_payment_date']) && strtotime($datetime) <= strtotime($dates_to_update['next_payment_date'])) {
-						$result['error'][] = sprintf( __( 'The %s date must occur after the next payment date.', 'wilderness-import-export' ), $date_type );
+					if (!empty($dates_to_pdate['next_payment_date']) && strtotime($datetime) <= strtotime($dates_to_update['next_payment_date'])) {
+						$result['error'][] = sprintf('The %s date must occur after the next payment date.', $date_type );
 					}
 				case 'next_payment_date' :
 					if ( ! empty( $dates_to_update['trial_end_date'] ) && strtotime( $datetime ) < strtotime( $dates_to_update['trial_end_date'] ) ) {
-						$result['error'][] = sprintf( __( 'The %s date must occur after the trial end date.', 'wilderness-import-export' ), $date_type );
+						$result['error'][] = sprintf('The %s date must occur after the trial end date.', $date_type );
 					}
 				case 'trial_end_date' :
 					if ( strtotime( $datetime ) <= strtotime( $dates_to_update['start'] ) ) {
-						$result['error'][] = sprintf( __( 'The %s must occur after the start date.', 'wilderness-import-export' ), $date_type );
+						$result['error'][] = sprintf('The %s must occur after the start date.', $date_type );
 					}
 			}
 		}
 
 		// make the sure end of prepaid term exists for subscription that are about to be set to pending-cancellation - continue to use the next payment date if that exists
-		if ( ( empty( $dates_to_update['next_payment_date'] ) || strtotime( $dates_to_update['next_payment_date'] ) < current_time( 'timestamp', true ) ) ) {
-			if ( ! empty( $dates_to_update['end_date'] ) && strtotime( $dates_to_update['end_date'] ) > current_time( 'timestamp', true ) ) {
+		if ((empty($dates_to_update['next_payment_date']) || strtotime($dates_to_update['next_payment_date']) < current_time('timestamp', true))){
+			if ( !empty( $dates_to_update['end_date'] ) && strtotime( $dates_to_update['end_date'] ) > current_time( 'timestamp', true ) ) {
 				$dates_to_update['next_payment_date'] = $dates_to_update['end_date'];
 				unset( $dates_to_update['end_date'] );
 			} else {
-				$result['error'][] = __( 'Importing a pending cancelled subscription requires an end date in the future.', 'wilderness-import-export' );
+				$result['error'][] = 'Importing a pending cancelled subscription requires an end date in the future.';
 			}
 		}
 
         try {
 
             // before we create the subscription we want to get some further product related details
-            // $data = wilderness_add_order($data); 
+            $subperiod = strip_and_trim($data['subperiod']); //this is the equivalent of billing_period
+            $subtype = strip_and_trim($data['subtype']); //this is the equivalent of billing_interval 
             $productId = wilderness_find_product($data["memberplan"]);
-            $subperiod = $data['subperiod']; //this is the equivalent of billing_period
-            $subtype = $data['subtype']; //this is the equivalent of billing_interval 
-
-            if(strip_and_trim($subperiod) == "12 months"){
-                $billing_period = "month";
-            } else {
-                $billing_period = "year";
-            }
-
-            if(strip_and_trim($subtype) == "12monthrenewal"){
-                $billing_interval = 1;
-            } elseif(strip_and_trim($subtype) == "12monthnew"){
-                $billing_interval = 1;
-            } elseif(strip_and_trim($subtype) == "3monthrenewal") {
-                $billing_interval = 3;
-            } else {
-                $billing_interval = 1;
-            }
+            $variationId = wilderness_find_variation($productId, $data['subperiod'], $data['subtype']);
+            $billing_period = wilderness_find_period($subperiod);
+            $billing_interval = wilderness_find_interval($subtype);
 
             $wpdb->query('START TRANSACTION');
 
-            $subscription = wilderness_create_subscription(array(
+            $subscription = wcs_create_subscription(array(
                 'customer_id'      => $user_id,
                 'start_date'       => $dates_to_update['start'],
                 'billing_interval' => $billing_interval, 
                 'billing_period'   => $billing_period,
                 'created_via'      => 'importer',
-                'customer_note'    => ( !empty($data['customer_note'])) ? $data['customer_note'] : '',
-                'currency'         => ( !empty($data['order_currency'])) ? $data['order_currency'] : '',
+                'customer_note'    => (!empty($data['customer_note'])) ? $data['customer_note'] : '',
+                'currency'         => (!empty($data['order_currency'])) ? $data['order_currency'] : '',
             ));
 
-            if ( is_wp_error( $subscription ) ) {
-                throw new Exception(sprintf(esc_html__('Could not create subscription: %s', 'wilderness-import-export'), $subscription->get_error_message()));
+            if (is_wp_error($subscription)) {
+                throw new Exception(sprintf('Could not create subscription: %s'), $subscription->get_error_message());
             }
 
             foreach ( $post_meta as $meta_data ) {
@@ -317,9 +268,7 @@ class wilderness_Importer {
             remove_filter( 'woocommerce_can_subscription_be_updated_to_cancelled', '__return_true' );
             remove_filter( 'woocommerce_can_subscription_be_updated_to_pending-cancel', '__return_true' );
 
-            if ( !$set_manual && !$subscription->has_status(wilderness_get_subscription_ended_statuses()) ) {
-                $result['warning'] = array_merge($result['warning'], self::set_payment_meta($subscription, $data));
-            }
+            if ( !$set_manual && !$subscription->has_status(wcs_get_subscription_ended_statuses()) ) {}
 
             if ( $set_manual || $requires_manual_renewal ) {
                 $subscription->update_manual(true);
@@ -332,9 +281,7 @@ class wilderness_Importer {
 
             $result['items'] = self::add_product( $subscription, array( 'product_id' => $productId ), $chosen_tax_rate_id );
 
-            if ( self::$add_memberships ) {
-                self::maybe_add_memberships( $user_id, $subscription->id, $product_id );
-            }
+            //self::maybe_add_memberships( $user_id, $subscription->id, $product_id );
 
             $wpdb->query( 'COMMIT' );
 
@@ -344,8 +291,8 @@ class wilderness_Importer {
         }
 
         if ( empty( $result['error'] ) ) {
-            $result['status']              = 'success';
-            $result['subscription']        = sprintf( '<a href="%s">#%s</a>', esc_url( admin_url( 'post.php?post=' . absint( $subscription->id ) . '&action=edit' ) ), $subscription->get_order_number() );
+            $result['status']= 'success';
+            $result['subscription']  = sprintf( '<a href="%s">#%s</a>', esc_url( admin_url( 'post.php?post=' . absint( $subscription->id ) . '&action=edit' ) ), $subscription->get_order_number() );
             $result['subscription_status'] = $subscription->get_status();
 
         } else {
@@ -357,7 +304,7 @@ class wilderness_Importer {
 
 	public static function get_user_display_name( $customer ) {
 
-		if ( ! is_object( $customer ) ) {
+		if ( !is_object($customer)) {
 			$customer = get_userdata( $customer );
 		}
 
@@ -382,9 +329,7 @@ class wilderness_Importer {
 
 		if ( function_exists( 'wc_memberships_get_membership_plans' ) ) {
 
-			if ( ! self::$membership_plans ) {
-				self::$membership_plans = wc_memberships_get_membership_plans();
-			}
+			self::$membership_plans = wc_memberships_get_membership_plans();
 
 			foreach ( self::$membership_plans as $plan ) {
 				if ( $plan->has_product( $product_id ) ) {
@@ -395,50 +340,49 @@ class wilderness_Importer {
 	}
 
 	public static function add_product( $subscription, $data, $chosen_tax_rate_id ) {
-		$item_args        = array();
+
+		$item_args = array();
 		$item_args['qty'] = isset( $data['quantity'] ) ? $data['quantity'] : 1;
 
 		if ( ! isset( $data['product_id'] ) ) {
-			throw new Exception( __( 'The product_id is missing from CSV.', 'wilderness-import-export' ) );
+			throw new Exception('The product_id is missing from CSV.');
 		}
-
+        
+        // get the product object from a product id
 		$_product = wc_get_product( $data['product_id'] );
 
 		if ( ! $_product ) {
-			throw new Exception( sprintf( __( 'No product or variation in your store matches the product ID #%s.', 'wilderness-import-export' ), $data['product_id'] ) );
+			throw new Exception( sprintf('No product or variation in your store matches the product ID #%s.', $data['product_id']) );
 		}
 
-		$line_item_name = ( ! empty( $data['name'] ) ) ? $data['name'] : $_product->get_title();
+		$line_item_name = (!empty($data['name'])) ? $data['name'] : $_product->get_title();
 		$product_string = sprintf( '<a href="%s">%s</a>', get_edit_post_link( $_product->id ), $line_item_name );
 
 		foreach ( array( 'total', 'tax', 'subtotal', 'subtotal_tax' ) as $line_item_data ) {
-
 			switch ( $line_item_data ) {
 				case 'total' :
 					$default = WC_Subscriptions_Product::get_price( $data['product_id'] );
 					break;
 				case 'subtotal' :
-					$default = ( ! empty( $data['total'] ) ) ? $data['total'] : WC_Subscriptions_Product::get_price( $data['product_id'] );
+					$default = (!empty($data['total'])) ? $data['total'] : WC_Subscriptions_Product::get_price($data['product_id']);
 					break;
 				default :
 					$default = 0;
 			}
-			$item_args['totals'][ $line_item_data ] = ( ! empty( $data[ $line_item_data ] ) ) ? $data[ $line_item_data ] : $default;
+			$item_args['totals'][$line_item_data] = (!empty($data[$line_item_data])) ? $data[$line_item_data] : $default;
 		}
 
 		// Add this site's variation meta data if no line item meta data was specified in the CSV
-		if ( empty( $data['meta'] ) && $_product->variation_data ) {
+		if (empty($data['meta'])) {
 			$item_args['variation'] = array();
 
 			foreach ( $_product->variation_data as $attribute => $variation ) {
-				$item_args['variation'][ $attribute ] = $variation;
+				$item_args['variation'][$attribute] = $variation;
 			}
 
-			$product_string .= ' [#' . $data['product_id'] . ']';
-		}
+            $variation_id = $customer_data['sub_variation'];
 
-		if ( self::$all_virtual && ! $_product->is_virtual() ) {
-			self::$all_virtual = false;
+			$product_string .= ' [#' . $data['product_id'] . ']';
 		}
 
 		if ( ! empty( $item_args['totals']['tax'] ) && ! empty( $chosen_tax_rate_id ) ) {
@@ -461,11 +405,10 @@ class wilderness_Importer {
             }
         }
 
-        if ( ! $item_id ) {
+        if ( !$item_id ) {
             throw new Exception( __( 'An unexpected error occurred when trying to add product "%s" to your subscription. The error was caught and no subscription for this row will be created. Please fix up the data from your CSV and try again.', 'wilderness-import-export' ) );
         }
 
 		return $product_string;
 	}
-
 }

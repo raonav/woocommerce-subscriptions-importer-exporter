@@ -4,43 +4,39 @@ jQuery(document).ready(function ($) {
 		import_count = 0,
 		warning_count = 0,
 		error_count = 0,
-		$timeout = $('#wcsi-timeout'),
-		$time_completition = $('#wcsi-time-completion'),
-		$completed_message = $('#wcsi-completed-message'),
+		estimate,
+		$wcsi_timeout = $('#wcsi-timeout'),
+		$wcsi_time_completition = $('#wcsi-time-completion'),
+		$wcsi_estimated_time = $('#wcsi-estimated-time'),
+		$wcsi_completed_message = $('#wcsi-completed-message'),
 		$importer_loading = $('.importer-loading'),
 		$subsubsub = $('.subsubsub'),
-		$progress = $('#wcsi-progress'),
-		$all_tbody = $('#wcsi-all-tbody'),
-		$failed_tbody = $('#wcsi-failed-tbody'),
-		$warning_tbody = $('#wcsi-warning-tbody'),
-		$test_passed = $('#wcsi-test-passed'),
-		$test_failed = $('#wcsi-test-failed'),
-		$error_count = $('#wcsi-error-count'),
-		$warning_count = $('#wcsi-warning-count'),
-		$all_count = $('#wcsi-all-count'),
-		$failed_count = $('#wcsi-failed-count'),
-		$error_title = $('#wcsi-error-title'),
-		$warning_title = $('#wcsi-warning-title'),
-		$test_errors = $('#test_errors'),
-		$test_warnings = $('#test_warnings'),
-		$completed_percent = $('#wcsi-completed-percent'),
+		$wcsi_progress = $('#wcsi-progress'),
+		$wcsi_all_tbody = $('#wcsi-all-tbody'),
+		$wcsi_failed_tbody = $('#wcsi-failed-tbody'),
+		$wcsi_warning_tbody = $('#wcsi-warning-tbody'),
+		$wcsi_error_count = $('#wcsi-error-count'),
+		$wcsi_warning_count = $('#wcsi-warning-count'),
+		$wcsi_all_count = $('#wcsi-all-count'),
+		$wcsi_failed_count = $('#wcsi-failed-count'),
+		$wcsi_error_title = $('#wcsi-error-title'),
+		$wcsi_warning_title = $('#wcsi-warning-title'),
+		$wcsi_completed_percent = $('#wcsi-completed-percent'),
 		ajax_import = function (start_pos, end_pos, row_start) {
 			var data = {
-				action:				'wilderness_import_request',
+				action:				'wcs_import_request',
 				file_id:			wcsi_data.file_id,
 				start:				start_pos,
 				end:				end_pos,
 				row_num:			row_start,
-				test_mode:			wcsi_data.test_mode,
 				email_customer:		wcsi_data.email_customer,
-				add_memberships:	wcsi_data.add_memberships,
-				wcsie_wpnonce:		wcsi_data.import_wpnonce
+				add_memberships:	wcsi_data.add_memberships
 			};
 
 			$.ajax({
 				url: wcsi_data.ajax_url,
 				type: 'POST',
-				wcsi_data: wcsi_data,
+				data: data,
 				timeout: 360000,
 				success: function (results) {
 					var i,
@@ -111,51 +107,57 @@ jQuery(document).ready(function ($) {
                     }
 
                     // Add all the strings to the dom once instead of on every iteration
-                    $all_tbody.append(append_text);
-                    $warning_tbody.append(append_warning_text);
+                    $wcsi_all_tbody.append(append_text);
+                    $wcsi_warning_tbody.append(append_warning_text);
 
                     if (append_failed_text.length) {
-                        $failed_tbody.append(append_failed_text);
+                        $wcsi_failed_tbody.append(append_failed_text);
                     }
 
                     import_count += results.length;
 
-                    $warning_count.html('(' + warning_count + ')');
-                    $failed_count.html('(' + error_count + ')');
-                    $all_count.html('(' + import_count + ')');
+                    $wcsi_warning_count.html('(' + warning_count + ')');
+                    $wcsi_failed_count.html('(' + error_count + ')');
+                    $wcsi_all_count.html('(' + import_count + ')');
 
 					counter += 2;
+
 					if ((counter / 2) >= wcsi_data.total) {
                         $importer_loading.addClass('finished').removeClass('importer-loading');
                         $importer_loading.html('<td colspan="6" class="row">' + wcsi_data.finished_importing + '</td>');
-						$completed_message.show();
-						$completed_percent.html('100%');
+						$wcsi_completed_message.show();
+						$wcsi_completed_percent.html('100%');
 					} else {
 						// calculate percentage completed
-						$completed_percent.html(((((counter / 2) * wcsi_data.rows_per_request) / (wcsi_data.total * wcsi_data.rows_per_request)) * 100).toFixed(0) + '%');
+						$wcsi_completed_percent.html(((((counter / 2) * wcsi_data.rows_per_request) / (wcsi_data.total * wcsi_data.rows_per_request)) * 100).toFixed(0) + '%');
 						ajax_import(wcsi_data.file_positions[counter], wcsi_data.file_positions[counter + 1], wcsi_data.start_row_num[counter / 2]);
 					}
 				},
 				error: function (xmlhttprequest, textstatus) {
 					$importer_loading.addClass('finished').removeClass('importer-loading');
 					if (textstatus === 'timeout') {
-						$timeout.show();
-						$completed_message.html($timeout.html());
-						$completed_message.show();
-						$time_completition.hide();
+						$wcsi_timeout.show();
+						$wcsi_completed_message.html($wcsi_timeout.html());
+						$wcsi_completed_message.show();
+						$wcsi_time_completition.hide();
 					}
 				}
 
 			});
-		};
+		},
+
+		// calculate an estimate to give the admins a rough idea of a completion time ( 0.33 is based on averages from own tests + 50% )
+		estimate = ((0.33 * parseInt(wcsi_data.rows_per_request) * parseInt(wcsi_data.total)) / 60).toFixed(0);
+		$wcsi_estimated_time.html(estimate + ' to ' + ((estimate === 0) ? 1 : (estimate * 1.5).toFixed(0)));
 
 	ajax_import(wcsi_data.file_positions[counter], wcsi_data.file_positions[counter + 1], wcsi_data.start_row_num[counter / 2]);
 
 	$subsubsub.on('click', 'a', function (e) {
 		e.preventDefault();
-		var id = $(this).parent('li').attr('wcsi_data-value');
+		var id = $(this).parent('li').attr('data-value');
 
-		$progress.find('tbody').hide();
-		$progress.find('#wcsi-' + id + '-tbody').show();
+		$wcsi_progress.find('tbody').hide();
+		$wcsi_progress.find('#wcsi-' + id + '-tbody').show();
 	});
 });
+

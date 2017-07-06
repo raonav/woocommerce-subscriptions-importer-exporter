@@ -3,11 +3,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 ?>
-<h3><?php esc_html_e( 'Importing Results', 'wcs-import-export' ); ?></h3>
+<h3>Importing Results</h3>
 
-<p id="wcsi-timeout" style="display: none;">
-	<?php echo wp_kses( sprintf( __( 'Error: The importing process has timed out. Please check the CSV is correct and do a test run before importing by enabling the checkbox on the Importer Home screen. %1$s Start Over. %2$s', 'wcs-import-export' ), '<a href="' . $this->admin_url . '">', '</a>' ), array( 'a' => array( 'href' => true ) ) ); ?>
-</p>
 <br class="clear">
 <ul class="subsubsub">
 	<li class="wcsi-status-li" data-value="all"><a href="#"><?php esc_html_e( 'All', 'wcs-import-export' ); ?></a><span id="wcsi-all-count">(0)</span></li>
@@ -17,12 +14,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 <table id="wcsi-progress" class="widefat_importer widefat">
 	<thead>
 		<tr>
-			<th class="row"><?php esc_html_e( 'Import Status', 'wcs-import-export' ); ?></th>
-			<th class="row"><?php esc_html_e( 'Subscription', 'wcs-import-export' ); ?></th>
-			<th class="row"><?php esc_html_e( 'Items', 'wcs-import-export' ); ?></th>
-			<th class="row"><?php esc_html_e( 'Customer', 'wcs-import-export' ); ?></th>
-			<th class="row"><?php esc_html_e( 'Subscription Status', 'wcs-import-export' ); ?></th>
-			<th class="row"><?php esc_html_e( 'Number of Warnings', 'wcs-import-export' ); ?></th>
+			<th class="row">Import Status</th>
+			<th class="row">Subscription</th>
+			<th class="row">Items</th>
+			<th class="row">Customer</th>
+			<th class="row">Subscription Status</th>
+			<th class="row">Number of Warnings</th>
 		</tr>
 	</thead>
 	<tfoot>

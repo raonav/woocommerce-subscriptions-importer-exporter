@@ -17,7 +17,7 @@ class Wilderness_Import_Admin {
 		add_action( 'admin_init', array( &$this, 'post_request_handler' ) );
 		add_action( 'admin_menu', array( &$this, 'add_sub_menu' ), 10 );
 		add_action( 'admin_enqueue_scripts', array( &$this, 'enqueue_scripts' ) );
-		add_action( 'wp_ajax_wilderness_import_request', array( &$this, 'ajax_request_handler' ) );
+		add_action( 'wp_ajax_wcs_import_request', array( &$this, 'ajax_request_handler' ) );
 	}
 
 	public function add_sub_menu() {
@@ -28,11 +28,11 @@ class Wilderness_Import_Admin {
 
 		if ( isset( $_GET['page'] ) && 'import_subscription' == $_GET['page'] ) {
 
-			wp_enqueue_style( 'wilderness-importer', Wilderness_Importer::plugin_url() . 'assets/wilderness-importer.css' );
+			wp_enqueue_style( 'wilderness-importer', Wilderness_Importer_Main::plugin_url() . 'assets/wilderness-importer.css' );
 
 			if ( isset( $_GET['step'] ) && 3 == absint( $_GET['step'] )  ) {
 
-				wp_enqueue_script( 'wilderness-importer', Wilderness_Importer::plugin_url() . 'assets/wilderness-importer.js' );
+				wp_enqueue_script( 'wilderness-importer', Wilderness_Importer_Main::plugin_url() . 'assets/wilderness-importer.js' );
 
 				$file_id = absint( $_GET['file_id'] );
 				$file    = get_attached_file( $_GET['file_id'] );
@@ -94,8 +94,8 @@ class Wilderness_Import_Admin {
 				}
 
 				$script_data = array(
-					'success' 				=> esc_html__( 'success', 'wilderness-import' ),
-					'failed' 				=> esc_html__( 'failed', 'wilderness-import' ),
+					'success' 				=> 'success',
+					'failed' 				=> 'failed',
 					'error_string'			=> esc_html( sprintf( __( 'Row #%1$s from CSV %2$sfailed to import%3$s with error/s: %4$s', 'wilderness-import-export' ), '{row_number}', '<strong>', '</strong>', '{error_messages}' ) ),
 					'finished_importing' 	=> esc_html__( 'Finished Importing', 'wilderness-import-export' ),
 					'edit_order' 			=> esc_html__( 'Edit Order', 'wilderness-import-export' ),
@@ -111,8 +111,7 @@ class Wilderness_Import_Admin {
 					'start_row_num'    => $row_start,
 					'ajax_url'         => admin_url( 'admin-ajax.php' ),
 					'rows_per_request' => $this->rows_per_request,
-					'total'            => $total,
-					'import_wpnonce'   => wp_create_nonce( 'process-import' ),
+					'total'            => $total
 				);
 
 				wp_localize_script( 'wilderness-importer', 'wcsi_data', $script_data );
@@ -123,7 +122,7 @@ class Wilderness_Import_Admin {
 	public function admin_page() {
 
 		echo '<div class="wrap">';
-		echo '<h2>' . esc_html__( 'Wilderness CSV Importer', 'wilderness-import' ) . '</h2>';
+		echo '<h2>CSV Importer</h2>';
 
 		$page = ( isset( $_GET['step'] ) ) ? $_GET['step'] : 1;
 
@@ -146,10 +145,6 @@ class Wilderness_Import_Admin {
 
 		$upload_dir = wp_upload_dir();
 
-		if ( isset( $POST['wildernessi_wpnonce'] ) ) {
-			check_admin_referer( 'import-upload', 'wildernessi_wpnonce' );
-		}
-
 		if (!empty($this->upload_error)) : ?>
 			<div id="message" class="error">
 				<p><?php printf( esc_html__( 'Error uploading file: %s', 'wilderness-import' ), wp_kses_post( $this->upload_error ) ); ?></p>
@@ -162,7 +157,6 @@ class Wilderness_Import_Admin {
 			<p><strong><?php echo esc_html( $upload_dir['error'] ); ?></strong></p></div>
 		<?php else : ?>
 			<form enctype="multipart/form-data" id="import-upload-form" method="post" action="<?php echo esc_attr( $this->admin_url ); ?>">
-				<?php wp_nonce_field( 'import-upload', 'wildernessi_wpnonce' ); ?>
 				<table class="form-table">
 					<tbody>
 						<tr>
@@ -184,14 +178,12 @@ class Wilderness_Import_Admin {
 	}
 
 	private function import_page() {
-		include( Wilderness_Importer::plugin_dir() . 'templates/import-results.php' );
+		include( Wilderness_Importer_Main::plugin_dir() . 'templates/import-results.php' );
 	}
 
 	public function post_request_handler() {
         
         if ( isset( $_GET['page'] ) && 'import_subscription' == $_GET['page'] && isset( $_POST['action'] ) ) {
-
-			check_admin_referer( 'import-upload', 'wildernessi_wpnonce' );
 
 			$next_step_url_params = array('file_id' => isset( $_GET['file_id'] ) ? $_GET['file_id'] : 0);
 
@@ -214,12 +206,9 @@ class Wilderness_Import_Admin {
 
     // submit form data as ajax request and receive json response
 	public function ajax_request_handler() {
-        
         if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_die( "Cheatin' huh?" );
+			wp_die( "You do not have the necessary permissions to execute this action" );
 		}
-
-		check_ajax_referer( 'process-import', 'wildernessie_wpnonce' );
 
 		@set_time_limit( 0 );
 
@@ -229,13 +218,11 @@ class Wilderness_Import_Admin {
 		if ( isset( $_POST['file_id'] ) && isset( $_POST['row_num'] ) ) {
 			$results = Wilderness_Importer::import_data( array(
 					'file_path'       => get_attached_file( absint( $_POST['file_id'] ) ),
-					'mapped_fields'   => get_post_meta( absint( $_POST['file_id'] ), '_mapped_rules', true ),
 					'file_start'      => ( isset( $_POST['start'] ) ) ? absint( $_POST['start'] ) : 0,
 					'file_end'        => ( isset( $_POST['end'] ) ) ? absint( $_POST['end'] ) : 0,
 					'starting_row'    => absint( $_POST['row_num'] ),
 				)
 			);
-            
             header( 'Content-Type: application/json; charset=utf-8' );
 			echo json_encode( $results );
 		}
